@@ -70,16 +70,27 @@ if [[ -z $backup_dirs_filelist ]]; then
     find . -type d -mindepth 1 -maxdepth 1 > $backup_dirs_filelist
 fi
 
+typeset -A lineidxs
 
-while read line; do
-    file="/filestore/output/${line}"
+while read file; do
     print "==Next==" | tee -a $log
+    if [[ ! -d $file ]]; then
+        print "Skipping ${file}: not a directory" | tee -a $log
+        continue
+    fi
+    line=$(basename $file)
+    if [[ -z $lineidxs[$line] ]]; then
+        lineidxs[$line]=0
+    else
+        lineidxs[$line]=$(($lineidxs[$line] + 1))
+    fi
+    lineidx=$lineidxs[$line]
     date | tee -a $log
-    print "Processing " $line | tee -a $log
+    print "Processing ${line} (${lineidx})" | tee -a $log
     # Count number of entries in directory
-    find "/filestore/output/${line}" -type f |wc -l | tee -a $log
+    find $file -type f |wc -l | tee -a $log
     # Upload to datamon
-    label="${TIMESTAMP_HUMAN_READABLE}-${line}"
+    label="${TIMESTAMP_HUMAN_READABLE}-${line}-${lineidx}"
     print "label=${label}"
     1>datamon.log 2>datamon.err \
     ./datamon bundle upload \
@@ -93,16 +104,16 @@ while read line; do
     ./datamon bundle list files \
         --repo $DATAMON_REPO \
         --label $label \
-        > ${line}-files.log
+        > ${line}-${lineidx}-files.log
     # If correct
-    count=$(cat ${line}-files.log |grep -i '^name:.*, size:.*, hash:.*$' |wc -l)
+    count=$(cat ${line}-${lineidx}-files.log |grep -i '^name:.*, size:.*, hash:.*$' |wc -l)
     print -- "$count in bundle"
     count2=$(find $file -type f |wc -l)
     print -- "$count2 in nfs"
     if [ $count -eq $count2 ]; then
         # confident that current file is backed up
         if [[ -z $unlinkable_filelist ]]; then
-            echo "Deleting " $line | tee -a $log
+            echo "Deleting ${line} (${lineidx})" | tee -a $log
             find $file -mtime "+${REMOVE_INTERVAL_DAYS}d" -delete | tee -a $log
         else
             find $file -mtime "+${REMOVE_INTERVAL_DAYS}d" >> $unlinkable_filelist
