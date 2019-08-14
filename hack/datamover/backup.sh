@@ -78,7 +78,7 @@ while read line; do
         --label $label \
         > ${line}-files.log
     # If correct
-    count=$(cat ${line}-files.log |grep -i name |wc -l)
+    count=$(cat ${line}-files.log |grep -i '^name:.*, size:.*, hash:.*$' |wc -l)
     print -- "$count in bundle"
     count2=$(find $file -type f |wc -l)
     print -- "$count2 in nfs"
