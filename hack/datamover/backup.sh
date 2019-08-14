@@ -12,16 +12,20 @@ REMOVE_INTERVAL_DAYS=20
 
 backup_dir=
 backup_dirs_filelist=
+unlinkable_filelist=
 
 log=processing.log
 
-while getopts d:f: opt; do
+while getopts d:f:u: opt; do
     case $opt in
         (d)
             backup_dir="$OPTARG"
             ;;
         (f)
             backup_dirs_filelist="$OPTARG"
+            ;;
+        (u)
+            unlinkable_filelist="$OPTARG"
             ;;
         (\?)
             print Bad option, aborting.
@@ -41,7 +45,20 @@ if [[ -z $backup_dir && -z $backup_dirs_filelist ]]; then
 fi
 if [[ -n $backup_dir ]]; then
     if [[ ! -d $backup_dir ]]; then
-        print "backup directory $backup_dir doesn't exist"
+        print "backup directory (-d) $backup_dir doesn't exist" 1>&2
+        exit 1
+    fi
+fi
+
+if [[ -n $unlinkable_filelist ]]; then
+    if [[ -e $unlinkable_filelist ]]; then
+        print -- "unlinkable filelist (-u) $unlinkable_filelist already exists" 1>&2
+        exit 1
+    fi
+    _unlinkable_filelist_dir=$(dirname $unlinkable_filelist)
+    if [[ ! -d $_unlinkable_filelist_dir ]]; then
+        print "destination directory $_unlinkable_filelist_dir for" \
+              "unlinkable filelist (-u) $unlinkable_filelist doesn't exist" 1>&2
         exit 1
     fi
 fi
@@ -83,9 +100,13 @@ while read line; do
     count2=$(find $file -type f |wc -l)
     print -- "$count2 in nfs"
     if [ $count -eq $count2 ]; then
-        # delete old files
-        echo "Deleting " $line | tee -a $log
-        find $file -mtime "+${REMOVE_INTERVAL_DAYS}d" -delete | tee -a $log
+        # confident that current file is backed up
+        if [[ -z $unlinkable_filelist ]]; then
+            echo "Deleting " $line | tee -a $log
+            find $file -mtime "+${REMOVE_INTERVAL_DAYS}d" -delete | tee -a $log
+        else
+            find $file -mtime "+${REMOVE_INTERVAL_DAYS}d" >> $unlinkable_filelist
+        fi
     fi
     echo "Done " $file | tee -a $log
 done < $backup_dirs_filelist
