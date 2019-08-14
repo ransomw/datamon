@@ -2,8 +2,51 @@
 
 setopt ERR_EXIT
 
-dirs="./directories"
+backup_dirs_filelist
+
+backup_dir=
+backup_dirs_filelist=
+
 log=processing.log
+
+while getopts d:f: opt; do
+    case $opt in
+        (d)
+            backup_dir="$OPTARG"
+            ;;
+        (f)
+            backup_dirs_filelist="$OPTARG"
+            ;;
+        (\?)
+            print Bad option, aborting.
+            exit 1
+            ;;
+    esac
+done
+(( OPTIND > 1 )) && shift $(( OPTIND - 1 ))
+
+if [[ -n $backup_dir && -n $backup_dirs_filelist ]]; then
+    print 'backup directory (-d) and backup filelist (-f) params are mutually exclusive' 1>&2
+    exit 1
+fi
+if [[ -z $backup_dir && -z $backup_dirs_filelist ]]; then
+    print 'must specify at least one of backup directory (-d) and backup filelist (-f) params' 1>&2
+    exit 1
+fi
+if [[ -n $backup_dir ]]; then
+    if [[ ! -d $backup_dir ]]; then
+        print "backup directory $backup_dir doesn't exist"
+        exit 1
+    fi
+fi
+
+##
+
+if [[ -z $backup_dirs_filelist ]]; then
+    backup_dirs_filelist=/tmp/datamover-backup.list
+    find . -type d -mindepth 1 -maxdepth 1 > $backup_dirs_filelist
+fi
+
 
 while read line; do
     file="/filestore/output/${line}"
@@ -39,4 +82,4 @@ while read line; do
         find $file -mtime +20 -delete | tee -a $log
     fi
     echo "Done " $file | tee -a $log
-done < $dirs
+done < $backup_dirs_filelist
