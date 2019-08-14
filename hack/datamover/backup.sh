@@ -4,6 +4,12 @@ setopt ERR_EXIT
 
 backup_dirs_filelist
 
+TIMESTAMP=$(date '+%y%m%d%H%M%S')
+TIMESTAMP_HUMAN_READABLE=$(date '+%Y-%b-%d' | tr '[:upper:]' '[:lower:]')
+DATAMON_REPO=backup-filestore-output
+DATAMON_CONCURRENCY_FACTOR=300
+REMOVE_INTERVAL_DAYS=20
+
 backup_dir=
 backup_dirs_filelist=
 
@@ -56,30 +62,30 @@ while read line; do
     # Count number of entries in directory
     find "/filestore/output/${line}" -type f |wc -l | tee -a $log
     # Upload to datamon
-    label="${line}-aug-09-2019"
+    label="${TIMESTAMP_HUMAN_READABLE}-${line}"
     print "label=${label}"
     1>datamon.log 2>datamon.err \
     ./datamon bundle upload \
-        --concurrency-factor 300 \
+        --concurrency-factor $DATAMON_CONCURRENCY_FACTOR \
         --skip-on-error \
-        --repo backup-filestore-output \
+        --repo $DATAMON_REPO \
         --path $file \
         --label $label \
-        --message "backup aug 9th"
+        --message "datamover backup.sh backup: ${TIMESTAMP} (${TIMESTAMP_HUMAN_READABLE})"
     # check number of entries
     ./datamon bundle list files \
-        --repo backup-filestore-output \
+        --repo $DATAMON_REPO \
         --label $label \
         > ${line}-files.log
     # If correct
-    count=$(cat $line-files.log |grep -i name |wc -l)
+    count=$(cat ${line}-files.log |grep -i name |wc -l)
     print -- "$count in bundle"
-    count2=$(find $file -type f | wc -l)
+    count2=$(find $file -type f |wc -l)
     print -- "$count2 in nfs"
     if [ $count -eq $count2 ]; then
         # delete old files
         echo "Deleting " $line | tee -a $log
-        find $file -mtime +20 -delete | tee -a $log
+        find $file -mtime "+${REMOVE_INTERVAL_DAYS}d" -delete | tee -a $log
     fi
     echo "Done " $file | tee -a $log
 done < $backup_dirs_filelist
