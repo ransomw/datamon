@@ -207,6 +207,11 @@ clean:
 ## Setup, run all tests and clean
 test: clean setup runtests clean
 
+.PHONY: tini-cache-download
+tini-cache-download: export TINI_VERSION=v0.18.0 TINI_LOC=tini-static-amd6
+tini-cache-download:
+	./hack/cache_tini.sh
+
 .PHONY: runtests
 runtests:
 	@go test ./...
