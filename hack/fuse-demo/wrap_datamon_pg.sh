@@ -171,23 +171,43 @@ emit_event() {
     touch "${COORD_POINT}/${EVENT_NAME}"
 }
 
+dbg_print() {
+    typeset dbg=true
+    if $dbg; then
+        print -- $*
+    fi
+}
+
 # todo: this could wait on the process, escalate signal, etc.
 slay() {
+    typeset -i pid
+    typeset pids_str
+    typeset -a pids_arr
+    typeset -i num_tries
+    typeset sent_term
+    sent_term=false
     pid="$1"
     kill $pid
+    while true; do
+        if [[ num_tries -eq 10 ]]; then
+           dbg_print "sending SIGTERM to $pid"
+           kill -9 $pid
+        fi
+        pids_str=$(ps | awk 'NR > 1 { print $1 }')
+        pids_arr=(${(f)pids_str})
+        if ! ((${pids_arr[(Ie)$pid]})); then
+            break
+        fi
+        dbg_print "awaiting $pid exit after signal"
+        sleep 1
+        ((num_tries++)) || true
+    done
 }
 
 # todo: block until clean shutdown or error out
 stop_postgres() {
     pid="$1"
     kill $pid
-}
-
-dbg_print() {
-    typeset dbg=true
-    if $dbg; then
-        print -- $*
-    fi
 }
 
 #####
