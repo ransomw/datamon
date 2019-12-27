@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"context"
-	"log"
+	"fmt"
 
 	"github.com/oneconcern/datamon/pkg/core"
 
@@ -46,7 +46,7 @@ name:bundle_upload.go, size:4021, hash:b9258e91eb29fe42c70262dd2da46dd71385995db
 			return
 		}
 		for _, e := range bundle.BundleEntries {
-			log.Printf("name:%s, size:%d, hash:%s", e.NameWithPath, e.Size, e.Hash)
+			fmt.Printf("name:%s, size:%d, hash:%s", e.NameWithPath, e.Size, e.Hash)
 		}
 	},
 	PreRun: func(cmd *cobra.Command, args []string) {
