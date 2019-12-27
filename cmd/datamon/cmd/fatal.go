@@ -15,6 +15,8 @@ var (
 	logFatalf  = log.Fatalf
 	osExit     = os.Exit
 
+	fmtPrintf = fmt.Printf
+
 	// used to patch over calls to Authable.Principal() during test
 	authorizer auth.Authable
 

@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -14,6 +15,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/option"
 )
+
+var runCmdOutputWriter io.Writer
+
+func mockFmtPrintf(format string, a ...interface{}) (int, error) {
+	if runCmdOutputWriter != nil {
+		return fmt.Fprintf(runCmdOutputWriter, format, a...)
+	} else {
+		return fmt.Printf(format, a...)
+	}
+}
 
 type ExitMocks struct {
 	mock.Mock
@@ -117,6 +128,7 @@ func setupConfig(t *testing.T, flags flagsT) func() {
 func setupTests(t *testing.T) func() {
 	_ = os.RemoveAll(destinationDir)
 	ctx := context.Background()
+	fmtPrintf = mockFmtPrintf
 	exitMocks = NewExitMocks()
 	logFatalf = MakeFatalfMock(exitMocks)
 	logFatalln = MakeFatallnMock(exitMocks)

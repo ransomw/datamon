@@ -1046,7 +1046,8 @@ func listBundleFiles(t *testing.T, repoName string, bid string) []bundleFileList
 	if err != nil {
 		panic(err)
 	}
-	log.SetOutput(w)
+//	log.SetOutput(w)
+	runCmdOutputWriter = w
 	//
 	runCmd(t, []string{"bundle",
 		"list",
@@ -1055,7 +1056,8 @@ func listBundleFiles(t *testing.T, repoName string, bid string) []bundleFileList
 		"--bundle", bid,
 	}, "get bundle files list", false)
 	//
-	log.SetOutput(os.Stdout)
+//	log.SetOutput(os.Stdout)
+	runCmdOutputWriter = nil
 	w.Close()
 	//
 	lb, err := ioutil.ReadAll(r)

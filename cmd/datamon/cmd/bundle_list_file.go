@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"context"
-	"fmt"
+//	"fmt"
 
 	"github.com/oneconcern/datamon/pkg/core"
 
 	"github.com/spf13/cobra"
 )
+
+
 
 var bundleFileList = &cobra.Command{
 	Use:   "files",
@@ -46,7 +48,7 @@ name:bundle_upload.go, size:4021, hash:b9258e91eb29fe42c70262dd2da46dd71385995db
 			return
 		}
 		for _, e := range bundle.BundleEntries {
-			fmt.Printf("name:%s, size:%d, hash:%s", e.NameWithPath, e.Size, e.Hash)
+			fmtPrintf("name:%s, size:%d, hash:%s\n", e.NameWithPath, e.Size, e.Hash)
 		}
 	},
 	PreRun: func(cmd *cobra.Command, args []string) {
