@@ -530,10 +530,12 @@ func (fs *fsMutable) FlushFile(
 	f := fs.backingFiles[op.Inode]
 	if f != nil {
 		file := *f
+if file != nil {
 		err := file.Sync()
 		if err != nil {
 			return fuse.EIO
 		}
+}
 	}
 	return
 }
