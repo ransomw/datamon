@@ -103,7 +103,7 @@ func readConfig(location string) (*CLIConfig, error) {
 
 	// 4. Initialize config and override via flags
 	localConfig := new(CLIConfig)
-	if err := viper.Unmarshal(config); err != nil {
+	if err := viper.Unmarshal(localConfig); err != nil {
 		wrapFatalln("config file contains invalid values", err)
 		return nil, err
 	}
@@ -132,7 +132,10 @@ func initConfig() {
 		datamonFlags.core.Config = viper.GetString("DATAMON_GLOBAL_CONFIG")
 	}
 
-	config.setDatamonParams(&datamonFlags)
+	datamonFlagsPtr := &datamonFlags
+	datamonFlagsPtr.setDefaultsFromConfig(config)
+
+//	config.setDatamonParams(&datamonFlags)
 
 	if datamonFlags.context.Descriptor.Name == "" {
 		datamonFlags.context.Descriptor.Name = "datamon-dev"

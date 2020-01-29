@@ -62,15 +62,6 @@ type CLIConfig struct {
 	onceLogger sync.Once
 }
 
-func (c *CLIConfig) setDatamonParams(flags *flagsT) {
-	if flags.context.Descriptor.Name == "" {
-		flags.context.Descriptor.Name = c.Context
-	}
-	if flags.core.Config == "" {
-		flags.core.Config = c.Config
-	}
-}
-
 // MarshalConfig produces a CLI config as a YAML document
 func (c *CLIConfig) MarshalConfig() ([]byte, error) {
 	return yaml.Marshal(c)

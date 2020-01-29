@@ -314,6 +314,19 @@ func addVerifyHashFlag(cmd *cobra.Command) string {
 	return c
 }
 
+/** parameters struct from other formats */
+
+
+func (flags *flagsT) setDefaultsFromConfig(c *CLIConfig) {
+	if flags.context.Descriptor.Name == "" {
+		flags.context.Descriptor.Name = c.Context
+	}
+	if flags.core.Config == "" {
+		flags.core.Config = c.Config
+	}
+}
+
+
 /** parameters struct to other formats */
 
 func paramsToDatamonContext(ctx context.Context, params flagsT) (context2.Stores, error) {
