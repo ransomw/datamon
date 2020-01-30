@@ -24,7 +24,8 @@ name:bundle_upload.go, size:4021, hash:b9258e91eb29fe42c70262dd2da46dd71385995db
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		datamonFlagsPtr := &datamonFlags
-		remoteStores, err := datamonFlagsPtr.datamonContext(ctx)
+		optionInputs := newCliOptionInputs(config, datamonFlagsPtr)
+		remoteStores, err := optionInputs.datamonContext(ctx)
 		if err != nil {
 			wrapFatalln("create remote stores", err)
 			return
@@ -34,7 +35,7 @@ name:bundle_upload.go, size:4021, hash:b9258e91eb29fe42c70262dd2da46dd71385995db
 			wrapFatalln("determine bundle id", err)
 			return
 		}
-		bundleOpts, err := datamonFlagsPtr.bundleOpts(ctx)
+		bundleOpts, err := optionInputs.bundleOpts(ctx)
 		if err != nil {
 			wrapFatalln("failed to initialize bundle options", err)
 		}

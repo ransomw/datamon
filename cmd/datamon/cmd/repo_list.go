@@ -29,7 +29,8 @@ fred , test fred , Frédéric Bidon , frederic@oneconcern.com , 2019-12-05 14:01
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		datamonFlagsPtr := &datamonFlags
-		remoteStores, err := datamonFlagsPtr.datamonContext(ctx)
+		optionInputs := newCliOptionInputs(config, datamonFlagsPtr)
+		remoteStores, err := optionInputs.datamonContext(ctx)
 		if err != nil {
 			wrapFatalln("create remote stores", err)
 			return

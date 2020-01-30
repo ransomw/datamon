@@ -32,7 +32,8 @@ The destination path is a temporary staging area for write operations.`,
 			return
 		}
 		datamonFlagsPtr := &datamonFlags
-		consumableStore, err := datamonFlagsPtr.srcStore(ctx, true)
+		optionInputs := newCliOptionInputs(config, datamonFlagsPtr)
+		consumableStore, err := optionInputs.srcStore(ctx, true)
 		if err != nil {
 			onDaemonError("create source store", err)
 			return
@@ -42,7 +43,7 @@ The destination path is a temporary staging area for write operations.`,
 			core.Message(datamonFlags.bundle.Message),
 			core.Contributor(contributor),
 		)
-		bundleOpts, err := datamonFlagsPtr.bundleOpts(ctx)
+		bundleOpts, err := optionInputs.bundleOpts(ctx)
 		if err != nil {
 			onDaemonError("failed to initialize bundle options", err)
 			return

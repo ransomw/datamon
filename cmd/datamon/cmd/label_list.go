@@ -34,7 +34,8 @@ init , 1INzQ5TV4vAAfU2PbRFgPfnzEwR , 2019-03-12 22:10:24.159704 -0700 PDT`,
 		ctx := context.Background()
 
 		datamonFlagsPtr := &datamonFlags
-		remoteStores, err := datamonFlagsPtr.datamonContext(ctx)
+		optionInputs := newCliOptionInputs(config, datamonFlagsPtr)
+		remoteStores, err := optionInputs.datamonContext(ctx)
 		if err != nil {
 			wrapFatalln("create remote stores", err)
 			return

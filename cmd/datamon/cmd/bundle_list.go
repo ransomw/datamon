@@ -35,7 +35,8 @@ This is analogous to the "git log" command. The bundle ID works like a git commi
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		datamonFlagsPtr := &datamonFlags
-		remoteStores, err := datamonFlagsPtr.datamonContext(ctx)
+		optionInputs := newCliOptionInputs(config, datamonFlagsPtr)
+		remoteStores, err := optionInputs.datamonContext(ctx)
 		if err != nil {
 			wrapFatalln("create remote stores", err)
 			return

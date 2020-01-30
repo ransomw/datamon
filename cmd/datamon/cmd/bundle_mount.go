@@ -91,7 +91,8 @@ var mountBundleCmd = &cobra.Command{
 			return
 		}
 		datamonFlagsPtr := &datamonFlags
-		remoteStores, err := datamonFlagsPtr.datamonContext(ctx)
+		optionInputs := newCliOptionInputs(config, datamonFlagsPtr)
+		remoteStores, err := optionInputs.datamonContext(ctx)
 		if err != nil {
 			onDaemonError("create remote stores", err)
 			return
@@ -108,7 +109,7 @@ var mountBundleCmd = &cobra.Command{
 			return
 		}
 		bd := core.NewBDescriptor()
-		bundleOpts, err := datamonFlagsPtr.bundleOpts(ctx)
+		bundleOpts, err := optionInputs.bundleOpts(ctx)
 		if err != nil {
 			wrapFatalln("failed to initialize bundle options", err)
 		}

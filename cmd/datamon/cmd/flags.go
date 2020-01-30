@@ -316,7 +316,6 @@ func addVerifyHashFlag(cmd *cobra.Command) string {
 
 /** parameters struct from other formats */
 
-
 func (flags *flagsT) setDefaultsFromConfig(c *CLIConfig) {
 	if flags.context.Descriptor.Name == "" {
 		flags.context.Descriptor.Name = c.Context
@@ -324,67 +323,6 @@ func (flags *flagsT) setDefaultsFromConfig(c *CLIConfig) {
 	if flags.core.Config == "" {
 		flags.core.Config = c.Config
 	}
-}
-
-
-/** parameters struct to other formats */
-
-func (params *flagsT) datamonContext(ctx context.Context) (context2.Stores, error) {
-	// here we select a 100% gcs backend strategy (more elaborate strategies could be defined by the context pkg)
-	return gcscontext.MakeContext(ctx,
-		params.context.Descriptor,
-		config.Credential,
-		gcs.Logger(config.mustGetLogger(params)))
-}
-
-func (p *flagsT) bundleOpts(ctx context.Context) ([]core.BundleOption, error) {
-	stores, err := p.datamonContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-	ops := []core.BundleOption{
-		core.ContextStores(stores),
-	}
-	return ops, nil
-}
-
-func (params *flagsT) srcStore(ctx context.Context, create bool) (storage.Store, error) {
-	var err error
-	var consumableStorePath string
-
-	switch {
-	case params.bundle.DataPath == "":
-		consumableStorePath, err = ioutil.TempDir("", "datamon-mount-destination")
-		if err != nil {
-			return nil, fmt.Errorf("couldn't create temporary directory: %w", err)
-		}
-	case strings.HasPrefix(params.bundle.DataPath, "gs://"):
-		consumableStorePath = params.bundle.DataPath
-	default:
-		consumableStorePath, err = sanitizePath(params.bundle.DataPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to sanitize destination: %v: %w",
-				params.bundle.DataPath, err)
-		}
-	}
-
-	if create {
-		createPath(consumableStorePath)
-	}
-
-	var sourceStore storage.Store
-	if strings.HasPrefix(consumableStorePath, "gs://") {
-		fmt.Println(consumableStorePath[4:])
-		sourceStore, err = gcs.New(ctx, consumableStorePath[5:], config.Credential, gcs.Logger(config.mustGetLogger(params)))
-		if err != nil {
-			return sourceStore, err
-		}
-	} else {
-		DieIfNotAccessible(consumableStorePath)
-		DieIfNotDirectory(consumableStorePath)
-		sourceStore = localfs.New(afero.NewBasePathFs(afero.NewOsFs(), consumableStorePath))
-	}
-	return sourceStore, nil
 }
 
 // DestT defines the nomenclature for allowed destination types (e.g. Empty/NonEmpty)
@@ -449,6 +387,82 @@ func (params *flagsT) destStore(destT DestT,
 	}
 	destStore = localfs.New(fs)
 	return destStore, nil
+}
+
+/** combined config (file + env var) and parameters (pflags) */
+
+type cliOptionInputs struct {
+	config *CLIConfig
+	params *flagsT
+}
+
+func newCliOptionInputs(config *CLIConfig, params *flagsT) *cliOptionInputs {
+	return &cliOptionInputs{
+		config: config,
+		params: params,
+	}
+}
+
+func (in *cliOptionInputs) datamonContext(ctx context.Context) (context2.Stores, error) {
+	// here we select a 100% gcs backend strategy (more elaborate strategies could be defined by the context pkg)
+	return gcscontext.MakeContext(ctx,
+		in.params.context.Descriptor,
+		in.config.Credential,
+		gcs.Logger(config.mustGetLogger(in.params)))
+}
+
+func (in *cliOptionInputs) srcStore(ctx context.Context, create bool) (storage.Store, error) {
+	var (
+		err error
+		consumableStorePath string
+	)
+	switch {
+	case in.params.bundle.DataPath == "":
+		consumableStorePath, err = ioutil.TempDir("", "datamon-mount-destination")
+		if err != nil {
+			return nil, fmt.Errorf("couldn't create temporary directory: %w", err)
+		}
+	case strings.HasPrefix(in.params.bundle.DataPath, "gs://"):
+		consumableStorePath = in.params.bundle.DataPath
+	default:
+		consumableStorePath, err = sanitizePath(in.params.bundle.DataPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to sanitize destination: %v: %w",
+				in.params.bundle.DataPath, err)
+		}
+	}
+
+	if create {
+		createPath(consumableStorePath)
+	}
+
+	var sourceStore storage.Store
+	if strings.HasPrefix(consumableStorePath, "gs://") {
+		fmt.Println(consumableStorePath[4:])
+		sourceStore, err = gcs.New(ctx,
+			consumableStorePath[5:],
+			in.config.Credential,
+			gcs.Logger(in.config.mustGetLogger(in.params)))
+		if err != nil {
+			return sourceStore, err
+		}
+	} else {
+		DieIfNotAccessible(consumableStorePath)
+		DieIfNotDirectory(consumableStorePath)
+		sourceStore = localfs.New(afero.NewBasePathFs(afero.NewOsFs(), consumableStorePath))
+	}
+	return sourceStore, nil
+}
+
+func (in *cliOptionInputs) bundleOpts(ctx context.Context) ([]core.BundleOption, error) {
+	stores, err := in.datamonContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ops := []core.BundleOption{
+		core.ContextStores(stores),
+	}
+	return ops, nil
 }
 
 /** misc util */

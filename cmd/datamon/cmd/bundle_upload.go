@@ -40,7 +40,8 @@ set label 'init'
 			return
 		}
 		datamonFlagsPtr := &datamonFlags
-		sourceStore, err := datamonFlagsPtr.srcStore(ctx, false)
+		optionInputs := newCliOptionInputs(config, datamonFlagsPtr)
+		sourceStore, err := optionInputs.srcStore(ctx, false)
 		if err != nil {
 			wrapFatalln("create source store", err)
 			return
@@ -50,7 +51,7 @@ set label 'init'
 			core.Contributor(contributor),
 		)
 
-		bundleOpts, err := datamonFlagsPtr.bundleOpts(ctx)
+		bundleOpts, err := optionInputs.bundleOpts(ctx)
 		if err != nil {
 			wrapFatalln("failed to initialize bundle options", err)
 		}

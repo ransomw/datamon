@@ -23,7 +23,8 @@ exits with ENOENT status otherwise.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		datamonFlagsPtr := &datamonFlags
-		remoteStores, err := datamonFlagsPtr.datamonContext(ctx)
+		optionInputs := newCliOptionInputs(config, datamonFlagsPtr)
+		remoteStores, err := optionInputs.datamonContext(ctx)
 		if err != nil {
 			wrapFatalln("create remote stores", err)
 			return

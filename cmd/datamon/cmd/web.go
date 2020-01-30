@@ -19,7 +19,8 @@ var webSrv = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		infoLogger.Println("begin webserver")
 		datamonFlagsPtr := &datamonFlags
-		stores, err := datamonFlagsPtr.datamonContext(context.Background())
+		optionInputs := newCliOptionInputs(config, datamonFlagsPtr)
+		stores, err := optionInputs.datamonContext(context.Background())
 		if err != nil {
 			wrapFatalln("create remote stores", err)
 			return
