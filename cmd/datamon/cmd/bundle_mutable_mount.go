@@ -37,7 +37,7 @@ The destination path is a temporary staging area for write operations.`,
 			onDaemonError("create remote stores", err)
 			return
 		}
-		consumableStore, err := paramsToSrcStore(ctx, &datamonFlags, true)
+		consumableStore, err := datamonFlagsPtr.srcStore(ctx, true)
 		if err != nil {
 			onDaemonError("create source store", err)
 			return

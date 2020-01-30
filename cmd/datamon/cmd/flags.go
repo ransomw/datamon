@@ -331,7 +331,10 @@ func (flags *flagsT) setDefaultsFromConfig(c *CLIConfig) {
 
 func (params *flagsT) datamonContext(ctx context.Context) (context2.Stores, error) {
 	// here we select a 100% gcs backend strategy (more elaborate strategies could be defined by the context pkg)
-	return gcscontext.MakeContext(ctx, params.context.Descriptor, config.Credential, gcs.Logger(config.mustGetLogger(params)))
+	return gcscontext.MakeContext(ctx,
+		params.context.Descriptor,
+		config.Credential,
+		gcs.Logger(config.mustGetLogger(params)))
 }
 
 func paramsToBundleOpts(stores context2.Stores) []core.BundleOption {
@@ -341,7 +344,7 @@ func paramsToBundleOpts(stores context2.Stores) []core.BundleOption {
 	return ops
 }
 
-func paramsToSrcStore(ctx context.Context, params *flagsT, create bool) (storage.Store, error) {
+func (params *flagsT) srcStore(ctx context.Context, create bool) (storage.Store, error) {
 	var err error
 	var consumableStorePath string
 
@@ -448,6 +451,8 @@ func paramsToDestStore(params *flagsT,
 func paramsToContributor(_ *flagsT) (model.Contributor, error) {
 	return authorizer.Principal(config.Credential)
 }
+
+/** misc util */
 
 // requireFlags sets a flag (local to the command or inherited) as required
 func requireFlags(cmd *cobra.Command, flags ...string) {

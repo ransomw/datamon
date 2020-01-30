@@ -45,7 +45,7 @@ set label 'init'
 			wrapFatalln("create remote stores", err)
 			return
 		}
-		sourceStore, err := paramsToSrcStore(ctx, &datamonFlags, false)
+		sourceStore, err := datamonFlagsPtr.srcStore(ctx, false)
 		if err != nil {
 			wrapFatalln("create source store", err)
 			return
