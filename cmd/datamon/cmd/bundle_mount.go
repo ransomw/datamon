@@ -96,7 +96,7 @@ var mountBundleCmd = &cobra.Command{
 			onDaemonError("create remote stores", err)
 			return
 		}
-		consumableStore, err := paramsToDestStore(&datamonFlags, destTEmpty, "datamon-mount-destination")
+		consumableStore, err := datamonFlagsPtr.destStore(destTEmpty, "datamon-mount-destination")
 		if err != nil {
 			onDaemonError("create destination store", err)
 			return

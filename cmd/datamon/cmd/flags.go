@@ -392,8 +392,7 @@ const (
 	destTNonEmpty
 )
 
-func paramsToDestStore(params *flagsT,
-	destT DestT,
+func (params *flagsT) destStore(destT DestT,
 	tmpdirPrefix string,
 ) (storage.Store, error) {
 	var err error

@@ -25,7 +25,7 @@ var bundleUpdateCmd = &cobra.Command{
 			wrapFatalln("create remote stores", err)
 			return
 		}
-		destinationStore, err := paramsToDestStore(&datamonFlags, destTNonEmpty, "")
+		destinationStore, err := datamonFlagsPtr.destStore(destTNonEmpty, "")
 		if err != nil {
 			wrapFatalln("create destination store", err)
 			return

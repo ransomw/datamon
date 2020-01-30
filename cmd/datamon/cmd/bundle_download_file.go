@@ -27,7 +27,7 @@ You may use the "--label" flag as an alternate way to specify a particular bundl
 			return
 		}
 
-		destinationStore, err := paramsToDestStore(&datamonFlags, destTMaybeNonEmpty, "")
+		destinationStore, err := datamonFlagsPtr.destStore(destTMaybeNonEmpty, "")
 		if err != nil {
 			wrapFatalln("create destination store", err)
 			return

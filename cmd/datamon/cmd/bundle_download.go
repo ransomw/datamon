@@ -43,7 +43,7 @@ Using bundle: 1UZ6kpHe3EBoZUTkKPHSf8s2beh
 			wrapFatalln("create remote stores", err)
 			return
 		}
-		destinationStore, err := paramsToDestStore(&datamonFlags, destTEmpty, "")
+		destinationStore, err := datamonFlagsPtr.destStore(destTEmpty, "")
 		if err != nil {
 			wrapFatalln("create destination store", err)
 			return
