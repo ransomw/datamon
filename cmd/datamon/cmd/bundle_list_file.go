@@ -23,7 +23,7 @@ name:bundle_upload.go, size:4021, hash:b9258e91eb29fe42c70262dd2da46dd71385995db
 ...`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
-		remoteStores, err := paramsToDatamonContext(ctx, datamonFlags)
+		remoteStores, err := paramsToDatamonContext(ctx, &datamonFlags)
 		if err != nil {
 			wrapFatalln("create remote stores", err)
 			return

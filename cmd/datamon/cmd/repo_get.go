@@ -22,7 +22,7 @@ Prints corresponding repo information if the name exists,
 exits with ENOENT status otherwise.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
-		remoteStores, err := paramsToDatamonContext(ctx, datamonFlags)
+		remoteStores, err := paramsToDatamonContext(ctx, &datamonFlags)
 		if err != nil {
 			wrapFatalln("create remote stores", err)
 			return

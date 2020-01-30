@@ -329,7 +329,7 @@ func (flags *flagsT) setDefaultsFromConfig(c *CLIConfig) {
 
 /** parameters struct to other formats */
 
-func paramsToDatamonContext(ctx context.Context, params flagsT) (context2.Stores, error) {
+func paramsToDatamonContext(ctx context.Context, params *flagsT) (context2.Stores, error) {
 	// here we select a 100% gcs backend strategy (more elaborate strategies could be defined by the context pkg)
 	return gcscontext.MakeContext(ctx, params.context.Descriptor, config.Credential, gcs.Logger(config.mustGetLogger(params)))
 }
@@ -341,7 +341,7 @@ func paramsToBundleOpts(stores context2.Stores) []core.BundleOption {
 	return ops
 }
 
-func paramsToSrcStore(ctx context.Context, params flagsT, create bool) (storage.Store, error) {
+func paramsToSrcStore(ctx context.Context, params *flagsT, create bool) (storage.Store, error) {
 	var err error
 	var consumableStorePath string
 
@@ -389,7 +389,7 @@ const (
 	destTNonEmpty
 )
 
-func paramsToDestStore(params flagsT,
+func paramsToDestStore(params *flagsT,
 	destT DestT,
 	tmpdirPrefix string,
 ) (storage.Store, error) {
@@ -445,7 +445,7 @@ func paramsToDestStore(params flagsT,
 	return destStore, nil
 }
 
-func paramsToContributor(_ flagsT) (model.Contributor, error) {
+func paramsToContributor(_ *flagsT) (model.Contributor, error) {
 	return authorizer.Principal(config.Credential)
 }
 

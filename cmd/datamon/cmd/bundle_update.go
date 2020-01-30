@@ -19,12 +19,12 @@ var bundleUpdateCmd = &cobra.Command{
 		"--destination is a location previously passed to the `bundle download` command.",
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
-		remoteStores, err := paramsToDatamonContext(ctx, datamonFlags)
+		remoteStores, err := paramsToDatamonContext(ctx, &datamonFlags)
 		if err != nil {
 			wrapFatalln("create remote stores", err)
 			return
 		}
-		destinationStore, err := paramsToDestStore(datamonFlags, destTNonEmpty, "")
+		destinationStore, err := paramsToDestStore(&datamonFlags, destTNonEmpty, "")
 		if err != nil {
 			wrapFatalln("create destination store", err)
 			return

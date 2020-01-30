@@ -34,17 +34,17 @@ set label 'init'
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 
-		contributor, err := paramsToContributor(datamonFlags)
+		contributor, err := paramsToContributor(&datamonFlags)
 		if err != nil {
 			wrapFatalln("populate contributor struct", err)
 			return
 		}
-		remoteStores, err := paramsToDatamonContext(ctx, datamonFlags)
+		remoteStores, err := paramsToDatamonContext(ctx, &datamonFlags)
 		if err != nil {
 			wrapFatalln("create remote stores", err)
 			return
 		}
-		sourceStore, err := paramsToSrcStore(ctx, datamonFlags, false)
+		sourceStore, err := paramsToSrcStore(ctx, &datamonFlags, false)
 		if err != nil {
 			wrapFatalln("create source store", err)
 			return
@@ -60,7 +60,7 @@ set label 'init'
 		bundleOpts = append(bundleOpts, core.SkipMissing(datamonFlags.bundle.SkipOnError))
 		bundleOpts = append(bundleOpts,
 			core.ConcurrentFileUploads(getConcurrencyFactor(fileUploadsByConcurrencyFactor)))
-		bundleOpts = append(bundleOpts, core.Logger(config.mustGetLogger(datamonFlags)))
+		bundleOpts = append(bundleOpts, core.Logger(config.mustGetLogger(&datamonFlags)))
 
 		bundle := core.NewBundle(bd,
 			bundleOpts...,

@@ -27,7 +27,7 @@ var bundleDiffCmd = &cobra.Command{
 
 		ctx := context.Background()
 
-		remoteStores, err := paramsToDatamonContext(ctx, datamonFlags)
+		remoteStores, err := paramsToDatamonContext(ctx, &datamonFlags)
 		if err != nil {
 			wrapFatalln("failed to initialize remote stores", err)
 		}

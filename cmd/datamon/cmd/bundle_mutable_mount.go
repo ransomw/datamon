@@ -21,7 +21,7 @@ The destination path is a temporary staging area for write operations.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 
-		contributor, err := paramsToContributor(datamonFlags)
+		contributor, err := paramsToContributor(&datamonFlags)
 		if err != nil {
 			wrapFatalln("populate contributor struct", err)
 			return
@@ -31,12 +31,12 @@ The destination path is a temporary staging area for write operations.`,
 			runDaemonized()
 			return
 		}
-		remoteStores, err := paramsToDatamonContext(ctx, datamonFlags)
+		remoteStores, err := paramsToDatamonContext(ctx, &datamonFlags)
 		if err != nil {
 			onDaemonError("create remote stores", err)
 			return
 		}
-		consumableStore, err := paramsToSrcStore(ctx, datamonFlags, true)
+		consumableStore, err := paramsToSrcStore(ctx, &datamonFlags, true)
 		if err != nil {
 			onDaemonError("create source store", err)
 			return
@@ -50,7 +50,7 @@ The destination path is a temporary staging area for write operations.`,
 		bundleOpts = append(bundleOpts, core.Repo(datamonFlags.repo.RepoName))
 		bundleOpts = append(bundleOpts, core.ConsumableStore(consumableStore))
 		bundleOpts = append(bundleOpts, core.BundleID(datamonFlags.bundle.ID))
-		bundleOpts = append(bundleOpts, core.Logger(config.mustGetLogger(datamonFlags)))
+		bundleOpts = append(bundleOpts, core.Logger(config.mustGetLogger(&datamonFlags)))
 		bundle := core.NewBundle(bd,
 			bundleOpts...,
 		)

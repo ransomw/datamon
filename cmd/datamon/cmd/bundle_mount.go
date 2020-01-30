@@ -90,12 +90,12 @@ var mountBundleCmd = &cobra.Command{
 			runDaemonized()
 			return
 		}
-		remoteStores, err := paramsToDatamonContext(ctx, datamonFlags)
+		remoteStores, err := paramsToDatamonContext(ctx, &datamonFlags)
 		if err != nil {
 			onDaemonError("create remote stores", err)
 			return
 		}
-		consumableStore, err := paramsToDestStore(datamonFlags, destTEmpty, "datamon-mount-destination")
+		consumableStore, err := paramsToDestStore(&datamonFlags, destTEmpty, "datamon-mount-destination")
 		if err != nil {
 			onDaemonError("create destination store", err)
 			return
@@ -113,7 +113,7 @@ var mountBundleCmd = &cobra.Command{
 		bundleOpts = append(bundleOpts, core.BundleID(datamonFlags.bundle.ID))
 		bundleOpts = append(bundleOpts, core.Streaming(datamonFlags.bundle.Stream))
 		bundleOpts = append(bundleOpts, core.ConcurrentFilelistDownloads(getConcurrencyFactor(filelistDownloadsByConcurrencyFactor)))
-		bundleOpts = append(bundleOpts, core.Logger(config.mustGetLogger(datamonFlags)))
+		bundleOpts = append(bundleOpts, core.Logger(config.mustGetLogger(&datamonFlags)))
 		if datamonFlags.bundle.Stream {
 			bundleOpts = append(bundleOpts, core.CacheSize(int(datamonFlags.bundle.CacheSize)))
 			bundleOpts = append(bundleOpts, core.Prefetch(datamonFlags.bundle.WithPrefetch))

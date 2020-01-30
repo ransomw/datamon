@@ -72,7 +72,7 @@ func (c *CLIConfig) populateRemoteConfig(flags *flagsT) {
 		wrapFatalln("set environment variable $DATAMON_GLOBAL_CONFIG or define remote config in the config file", nil)
 		return
 	}
-	configStore, err := handleRemoteConfigErr(gcs.New(context.Background(), flags.core.Config, config.Credential, gcs.Logger(c.mustGetLogger(*flags))))
+	configStore, err := handleRemoteConfigErr(gcs.New(context.Background(), flags.core.Config, config.Credential, gcs.Logger(c.mustGetLogger(flags))))
 	if err != nil {
 		wrapFatalln("failed to get config store", err)
 		return
@@ -96,7 +96,7 @@ func (c *CLIConfig) populateRemoteConfig(flags *flagsT) {
 	flags.context.Descriptor = contextDescriptor
 }
 
-func (c *CLIConfig) mustGetLogger(flags flagsT) *zap.Logger {
+func (c *CLIConfig) mustGetLogger(flags *flagsT) *zap.Logger {
 	c.onceLogger.Do(func() {
 		var err error
 		c.logger, err = dlogger.GetLogger(flags.root.logLevel)

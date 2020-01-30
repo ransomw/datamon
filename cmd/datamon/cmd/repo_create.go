@@ -23,12 +23,12 @@ This is analogous to the "git init ..." command.`,
 	Example: `% datamon repo create  --description "Ritesh's repo for testing" --repo ritesh-datamon-test-repo`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
-		contributor, err := paramsToContributor(datamonFlags)
+		contributor, err := paramsToContributor(&datamonFlags)
 		if err != nil {
 			wrapFatalln("populate contributor struct", err)
 			return
 		}
-		remoteStores, err := paramsToDatamonContext(ctx, datamonFlags)
+		remoteStores, err := paramsToDatamonContext(ctx, &datamonFlags)
 		if err != nil {
 			wrapFatalln("create remote stores", err)
 			return

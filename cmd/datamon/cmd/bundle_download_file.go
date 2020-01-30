@@ -20,13 +20,13 @@ You may use the "--label" flag as an alternate way to specify a particular bundl
 
 		ctx := context.Background()
 
-		remoteStores, err := paramsToDatamonContext(ctx, datamonFlags)
+		remoteStores, err := paramsToDatamonContext(ctx, &datamonFlags)
 		if err != nil {
 			wrapFatalln("create remote stores", err)
 			return
 		}
 
-		destinationStore, err := paramsToDestStore(datamonFlags, destTMaybeNonEmpty, "")
+		destinationStore, err := paramsToDestStore(&datamonFlags, destTMaybeNonEmpty, "")
 		if err != nil {
 			wrapFatalln("create destination store", err)
 			return
