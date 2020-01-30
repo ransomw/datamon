@@ -50,7 +50,8 @@ This is analogous to the "git log" command. The bundle ID works like a git commi
 		}
 	},
 	PreRun: func(cmd *cobra.Command, args []string) {
-		config.populateRemoteConfig(&datamonFlags)
+		optionInputs := newCliOptionInputs(config, &datamonFlags)
+		optionInputs.populateRemoteConfig()
 	},
 }
 

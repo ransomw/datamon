@@ -51,7 +51,7 @@ The destination path is a temporary staging area for write operations.`,
 		bundleOpts = append(bundleOpts, core.Repo(datamonFlags.repo.RepoName))
 		bundleOpts = append(bundleOpts, core.ConsumableStore(consumableStore))
 		bundleOpts = append(bundleOpts, core.BundleID(datamonFlags.bundle.ID))
-		bundleOpts = append(bundleOpts, core.Logger(config.mustGetLogger(&datamonFlags)))
+		bundleOpts = append(bundleOpts, core.Logger(optionInputs.mustGetLogger()))
 		bundle := core.NewBundle(bd,
 			bundleOpts...,
 		)
@@ -95,7 +95,8 @@ The destination path is a temporary staging area for write operations.`,
 		}
 	},
 	PreRun: func(cmd *cobra.Command, args []string) {
-		config.populateRemoteConfig(&datamonFlags)
+		optionInputs := newCliOptionInputs(config, &datamonFlags)
+		optionInputs.populateRemoteConfig()
 	},
 }
 

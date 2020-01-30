@@ -26,7 +26,8 @@ analogous to a git commit.
 A bundle is composed of individual files that are tracked and changed
 together.`,
 	PreRun: func(cmd *cobra.Command, args []string) {
-		config.populateRemoteConfig(&datamonFlags)
+		optionInputs := newCliOptionInputs(config, &datamonFlags)
+		optionInputs.populateRemoteConfig()
 	},
 }
 

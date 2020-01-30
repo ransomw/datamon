@@ -84,7 +84,8 @@ var bundleDiffCmd = &cobra.Command{
 		}
 	},
 	PreRun: func(cmd *cobra.Command, args []string) {
-		config.populateRemoteConfig(&datamonFlags)
+		optionInputs := newCliOptionInputs(config, &datamonFlags)
+		optionInputs.populateRemoteConfig()
 	},
 }
 

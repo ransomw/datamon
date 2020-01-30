@@ -24,8 +24,9 @@ var ContextCreateCommand = &cobra.Command{
 }
 
 func createContext() {
+	optionInputs := newCliOptionInputs(config, &datamonFlags)
 	configStore, err := gcs.New(context2.Background(), datamonFlags.core.Config, config.Credential,
-		gcs.Logger(config.mustGetLogger(&datamonFlags)),
+		gcs.Logger(optionInputs.mustGetLogger()),
 	)
 	if err != nil {
 		wrapFatalln("failed to create config store", err)

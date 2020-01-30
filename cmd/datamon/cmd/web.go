@@ -69,7 +69,8 @@ var webSrv = &cobra.Command{
 		}
 	},
 	PreRun: func(cmd *cobra.Command, args []string) {
-		config.populateRemoteConfig(&datamonFlags)
+		optionInputs := newCliOptionInputs(config, &datamonFlags)
+		optionInputs.populateRemoteConfig()
 	}, // https://github.com/spf13/cobra/issues/458
 }
 

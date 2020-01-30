@@ -49,7 +49,8 @@ exits with ENOENT status otherwise.`,
 		log.Println(buf.String())
 	},
 	PreRun: func(cmd *cobra.Command, args []string) {
-		config.populateRemoteConfig(&datamonFlags)
+		optionInputs := newCliOptionInputs(config, &datamonFlags)
+		optionInputs.populateRemoteConfig()
 	},
 }
 

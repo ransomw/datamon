@@ -66,7 +66,7 @@ Using bundle: 1UZ6kpHe3EBoZUTkKPHSf8s2beh
 			datamonFlags.bundle.ConcurrencyFactor/fileDownloadsByConcurrencyFactor))
 		bundleOpts = append(bundleOpts, core.ConcurrentFilelistDownloads(
 			datamonFlags.bundle.ConcurrencyFactor/filelistDownloadsByConcurrencyFactor))
-		bundleOpts = append(bundleOpts, core.Logger(config.mustGetLogger(&datamonFlags)))
+		bundleOpts = append(bundleOpts, core.Logger(optionInputs.mustGetLogger()))
 
 		bundle := core.NewBundle(core.NewBDescriptor(),
 			bundleOpts...,
@@ -95,7 +95,8 @@ Using bundle: 1UZ6kpHe3EBoZUTkKPHSf8s2beh
 		}
 	},
 	PreRun: func(cmd *cobra.Command, args []string) {
-		config.populateRemoteConfig(&datamonFlags)
+		optionInputs := newCliOptionInputs(config, &datamonFlags)
+		optionInputs.populateRemoteConfig()
 	},
 }
 

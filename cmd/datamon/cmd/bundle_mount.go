@@ -118,7 +118,7 @@ var mountBundleCmd = &cobra.Command{
 		bundleOpts = append(bundleOpts, core.BundleID(datamonFlags.bundle.ID))
 		bundleOpts = append(bundleOpts, core.Streaming(datamonFlags.bundle.Stream))
 		bundleOpts = append(bundleOpts, core.ConcurrentFilelistDownloads(getConcurrencyFactor(filelistDownloadsByConcurrencyFactor)))
-		bundleOpts = append(bundleOpts, core.Logger(config.mustGetLogger(&datamonFlags)))
+		bundleOpts = append(bundleOpts, core.Logger(optionInputs.mustGetLogger()))
 		if datamonFlags.bundle.Stream {
 			bundleOpts = append(bundleOpts, core.CacheSize(int(datamonFlags.bundle.CacheSize)))
 			bundleOpts = append(bundleOpts, core.Prefetch(datamonFlags.bundle.WithPrefetch))
@@ -148,7 +148,8 @@ var mountBundleCmd = &cobra.Command{
 		}
 	},
 	PreRun: func(cmd *cobra.Command, args []string) {
-		config.populateRemoteConfig(&datamonFlags)
+		optionInputs := newCliOptionInputs(config, &datamonFlags)
+		optionInputs.populateRemoteConfig()
 	},
 }
 

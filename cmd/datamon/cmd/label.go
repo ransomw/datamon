@@ -22,7 +22,8 @@ multiple labels can refer to the same bundle via its commit hash (bundle ID).`,
 	Example: `Latest
 production`,
 	PreRun: func(cmd *cobra.Command, args []string) {
-		config.populateRemoteConfig(&datamonFlags)
+		optionInputs := newCliOptionInputs(config, &datamonFlags)
+		optionInputs.populateRemoteConfig()
 	},
 }
 

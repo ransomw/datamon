@@ -12,6 +12,7 @@ import (
 	gcscontext "github.com/oneconcern/datamon/pkg/context/gcs"
 
 	"github.com/oneconcern/datamon/pkg/core"
+	"github.com/oneconcern/datamon/pkg/dlogger"
 
 	"github.com/docker/go-units"
 	"github.com/go-openapi/runtime/flagext"
@@ -21,6 +22,8 @@ import (
 	"github.com/oneconcern/datamon/pkg/storage/localfs"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
+	"gopkg.in/yaml.v2"
 )
 
 type flagsT struct {
@@ -316,6 +319,7 @@ func addVerifyHashFlag(cmd *cobra.Command) string {
 
 /** parameters struct from other formats */
 
+// apply config file + env vars to structure used to parse cli flags
 func (flags *flagsT) setDefaultsFromConfig(c *CLIConfig) {
 	if flags.context.Descriptor.Name == "" {
 		flags.context.Descriptor.Name = c.Context
@@ -324,6 +328,8 @@ func (flags *flagsT) setDefaultsFromConfig(c *CLIConfig) {
 		flags.core.Config = c.Config
 	}
 }
+
+/** parameters struct to internal objects */
 
 // DestT defines the nomenclature for allowed destination types (e.g. Empty/NonEmpty)
 type DestT uint
@@ -403,12 +409,14 @@ func newCliOptionInputs(config *CLIConfig, params *flagsT) *cliOptionInputs {
 	}
 }
 
+/** combined config and parameters to internal objects */
+
 func (in *cliOptionInputs) datamonContext(ctx context.Context) (context2.Stores, error) {
 	// here we select a 100% gcs backend strategy (more elaborate strategies could be defined by the context pkg)
 	return gcscontext.MakeContext(ctx,
 		in.params.context.Descriptor,
 		in.config.Credential,
-		gcs.Logger(config.mustGetLogger(in.params)))
+		gcs.Logger(in.mustGetLogger()))
 }
 
 func (in *cliOptionInputs) srcStore(ctx context.Context, create bool) (storage.Store, error) {
@@ -442,7 +450,7 @@ func (in *cliOptionInputs) srcStore(ctx context.Context, create bool) (storage.S
 		sourceStore, err = gcs.New(ctx,
 			consumableStorePath[5:],
 			in.config.Credential,
-			gcs.Logger(in.config.mustGetLogger(in.params)))
+			gcs.Logger(in.mustGetLogger()))
 		if err != nil {
 			return sourceStore, err
 		}
@@ -463,6 +471,51 @@ func (in *cliOptionInputs) bundleOpts(ctx context.Context) ([]core.BundleOption,
 		core.ContextStores(stores),
 	}
 	return ops, nil
+}
+
+func (in *cliOptionInputs) mustGetLogger() *zap.Logger {
+	in.config.onceLogger.Do(func() {
+		var err error
+		in.config.logger, err = dlogger.GetLogger(in.params.root.logLevel)
+		if err != nil {
+			wrapFatalln("failed to set log level", err)
+		}
+	})
+	return in.config.logger
+}
+
+func (in *cliOptionInputs) populateRemoteConfig() {
+	flags := in.params
+	if flags.core.Config == "" {
+		wrapFatalln("set environment variable $DATAMON_GLOBAL_CONFIG or define remote config in the config file", nil)
+		return
+	}
+	configStore, err := handleRemoteConfigErr(
+		gcs.New(context.Background(),
+		flags.core.Config,
+		config.Credential,
+		gcs.Logger(in.mustGetLogger())))
+	if err != nil {
+		wrapFatalln("failed to get config store", err)
+		return
+	}
+	rdr, err := handleContextErr(configStore.Get(context.Background(), model.GetPathToContext(flags.context.Descriptor.Name)))
+	if err != nil {
+		wrapFatalln("failed to get context details from config store for context "+flags.context.Descriptor.Name, err)
+		return
+	}
+	b, err := ioutil.ReadAll(rdr)
+	if err != nil {
+		wrapFatalln("failed to read context details", err)
+		return
+	}
+	contextDescriptor := model.Context{}
+	err = yaml.Unmarshal(b, &contextDescriptor)
+	if err != nil {
+		wrapFatalln("failed to unmarshal", err)
+		return
+	}
+	flags.context.Descriptor = contextDescriptor
 }
 
 /** misc util */

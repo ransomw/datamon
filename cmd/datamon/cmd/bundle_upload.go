@@ -60,7 +60,7 @@ set label 'init'
 		bundleOpts = append(bundleOpts, core.SkipMissing(datamonFlags.bundle.SkipOnError))
 		bundleOpts = append(bundleOpts,
 			core.ConcurrentFileUploads(getConcurrencyFactor(fileUploadsByConcurrencyFactor)))
-		bundleOpts = append(bundleOpts, core.Logger(config.mustGetLogger(&datamonFlags)))
+		bundleOpts = append(bundleOpts, core.Logger(optionInputs.mustGetLogger()))
 
 		bundle := core.NewBundle(bd,
 			bundleOpts...,
@@ -110,7 +110,8 @@ set label 'init'
 		}
 	},
 	PreRun: func(cmd *cobra.Command, args []string) {
-		config.populateRemoteConfig(&datamonFlags)
+		optionInputs := newCliOptionInputs(config, &datamonFlags)
+		optionInputs.populateRemoteConfig()
 	},
 }
 
