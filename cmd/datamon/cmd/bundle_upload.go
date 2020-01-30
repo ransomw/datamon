@@ -40,11 +40,6 @@ set label 'init'
 			return
 		}
 		datamonFlagsPtr := &datamonFlags
-		remoteStores, err := datamonFlagsPtr.datamonContext(ctx)
-		if err != nil {
-			wrapFatalln("create remote stores", err)
-			return
-		}
 		sourceStore, err := datamonFlagsPtr.srcStore(ctx, false)
 		if err != nil {
 			wrapFatalln("create source store", err)
@@ -55,7 +50,10 @@ set label 'init'
 			core.Contributor(contributor),
 		)
 
-		bundleOpts := paramsToBundleOpts(remoteStores)
+		bundleOpts, err := datamonFlagsPtr.bundleOpts(ctx)
+		if err != nil {
+			wrapFatalln("failed to initialize bundle options", err)
+		}
 		bundleOpts = append(bundleOpts, core.ConsumableStore(sourceStore))
 		bundleOpts = append(bundleOpts, core.Repo(datamonFlags.repo.RepoName))
 		bundleOpts = append(bundleOpts, core.SkipMissing(datamonFlags.bundle.SkipOnError))

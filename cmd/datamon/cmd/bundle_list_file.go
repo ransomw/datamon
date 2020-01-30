@@ -34,7 +34,10 @@ name:bundle_upload.go, size:4021, hash:b9258e91eb29fe42c70262dd2da46dd71385995db
 			wrapFatalln("determine bundle id", err)
 			return
 		}
-		bundleOpts := paramsToBundleOpts(remoteStores)
+		bundleOpts, err := datamonFlagsPtr.bundleOpts(ctx)
+		if err != nil {
+			wrapFatalln("failed to initialize bundle options", err)
+		}
 		bundleOpts = append(bundleOpts, core.Repo(datamonFlags.repo.RepoName))
 		bundleOpts = append(bundleOpts, core.BundleID(datamonFlags.bundle.ID))
 		bundle := core.NewBundle(core.NewBDescriptor(),

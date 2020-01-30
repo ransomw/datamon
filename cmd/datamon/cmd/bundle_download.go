@@ -54,7 +54,10 @@ Using bundle: 1UZ6kpHe3EBoZUTkKPHSf8s2beh
 			return
 		}
 
-		bundleOpts := paramsToBundleOpts(remoteStores)
+		bundleOpts, err := datamonFlagsPtr.bundleOpts(ctx)
+		if err != nil {
+			wrapFatalln("failed to initialize bundle options", err)
+		}
 		bundleOpts = append(bundleOpts, core.Repo(datamonFlags.repo.RepoName))
 		bundleOpts = append(bundleOpts, core.ConsumableStore(destinationStore))
 		bundleOpts = append(bundleOpts, core.BundleID(datamonFlags.bundle.ID))

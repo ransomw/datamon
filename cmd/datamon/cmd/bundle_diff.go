@@ -50,7 +50,10 @@ var bundleDiffCmd = &cobra.Command{
 			core.ConsumableStore(destinationStore),
 		)
 
-		bundleOpts := paramsToBundleOpts(remoteStores)
+		bundleOpts, err := datamonFlagsPtr.bundleOpts(ctx)
+		if err != nil {
+			wrapFatalln("failed to initialize bundle options", err)
+		}
 		bundleOpts = append(bundleOpts, core.Repo(datamonFlags.repo.RepoName))
 		bundleOpts = append(bundleOpts, core.BundleID(datamonFlags.bundle.ID))
 		bundleOpts = append(bundleOpts,

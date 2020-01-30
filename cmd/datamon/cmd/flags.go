@@ -337,11 +337,15 @@ func (params *flagsT) datamonContext(ctx context.Context) (context2.Stores, erro
 		gcs.Logger(config.mustGetLogger(params)))
 }
 
-func paramsToBundleOpts(stores context2.Stores) []core.BundleOption {
+func (p *flagsT) bundleOpts(ctx context.Context) ([]core.BundleOption, error) {
+	stores, err := p.datamonContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	ops := []core.BundleOption{
 		core.ContextStores(stores),
 	}
-	return ops
+	return ops, nil
 }
 
 func (params *flagsT) srcStore(ctx context.Context, create bool) (storage.Store, error) {

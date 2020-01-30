@@ -39,7 +39,10 @@ You may use the "--label" flag as an alternate way to specify a particular bundl
 			return
 		}
 
-		bundleOpts := paramsToBundleOpts(remoteStores)
+		bundleOpts, err := datamonFlagsPtr.bundleOpts(ctx)
+		if err != nil {
+			wrapFatalln("failed to initialize bundle options", err)
+		}
 		bundleOpts = append(bundleOpts, core.Repo(datamonFlags.repo.RepoName))
 		bundleOpts = append(bundleOpts, core.ConsumableStore(destinationStore))
 		bundleOpts = append(bundleOpts, core.BundleID(datamonFlags.bundle.ID))

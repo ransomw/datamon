@@ -32,11 +32,6 @@ The destination path is a temporary staging area for write operations.`,
 			return
 		}
 		datamonFlagsPtr := &datamonFlags
-		remoteStores, err := datamonFlagsPtr.datamonContext(ctx)
-		if err != nil {
-			onDaemonError("create remote stores", err)
-			return
-		}
 		consumableStore, err := datamonFlagsPtr.srcStore(ctx, true)
 		if err != nil {
 			onDaemonError("create source store", err)
@@ -47,7 +42,11 @@ The destination path is a temporary staging area for write operations.`,
 			core.Message(datamonFlags.bundle.Message),
 			core.Contributor(contributor),
 		)
-		bundleOpts := paramsToBundleOpts(remoteStores)
+		bundleOpts, err := datamonFlagsPtr.bundleOpts(ctx)
+		if err != nil {
+			onDaemonError("failed to initialize bundle options", err)
+			return
+		}
 		bundleOpts = append(bundleOpts, core.Repo(datamonFlags.repo.RepoName))
 		bundleOpts = append(bundleOpts, core.ConsumableStore(consumableStore))
 		bundleOpts = append(bundleOpts, core.BundleID(datamonFlags.bundle.ID))
