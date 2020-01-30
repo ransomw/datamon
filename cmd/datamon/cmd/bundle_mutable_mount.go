@@ -21,7 +21,7 @@ The destination path is a temporary staging area for write operations.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 
-		contributor, err := paramsToContributor(&datamonFlags)
+		contributor, err := config.contributor()
 		if err != nil {
 			wrapFatalln("populate contributor struct", err)
 			return

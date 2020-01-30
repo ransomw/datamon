@@ -447,10 +447,6 @@ func (params *flagsT) destStore(destT DestT,
 	return destStore, nil
 }
 
-func paramsToContributor(_ *flagsT) (model.Contributor, error) {
-	return authorizer.Principal(config.Credential)
-}
-
 /** misc util */
 
 // requireFlags sets a flag (local to the command or inherited) as required

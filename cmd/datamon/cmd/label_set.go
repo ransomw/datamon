@@ -20,7 +20,7 @@ Setting a label is analogous to the git command "git tag {label}".`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 
-		contributor, err := paramsToContributor(&datamonFlags)
+		contributor, err := config.contributor()
 		if err != nil {
 			wrapFatalln("populate contributor struct", err)
 			return

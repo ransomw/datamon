@@ -40,7 +40,7 @@ config file created in /Users/ritesh/.datamon2/datamon.yaml
 config file created in /Users/ritesh/.config/.datamon/config.yaml
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		_, err := paramsToContributor(&datamonFlags)
+		_, err := config.contributor()
 		if err != nil {
 			wrapFatalln("contributor datamonFlags present", err)
 			return
