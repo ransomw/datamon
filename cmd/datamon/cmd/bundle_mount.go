@@ -90,7 +90,8 @@ var mountBundleCmd = &cobra.Command{
 			runDaemonized()
 			return
 		}
-		remoteStores, err := paramsToDatamonContext(ctx, &datamonFlags)
+		datamonFlagsPtr := &datamonFlags
+		remoteStores, err := datamonFlagsPtr.datamonContext(ctx)
 		if err != nil {
 			onDaemonError("create remote stores", err)
 			return

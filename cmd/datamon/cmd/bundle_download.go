@@ -37,7 +37,8 @@ Using bundle: 1UZ6kpHe3EBoZUTkKPHSf8s2beh
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 
-		remoteStores, err := paramsToDatamonContext(ctx, &datamonFlags)
+		datamonFlagsPtr := &datamonFlags
+		remoteStores, err := datamonFlagsPtr.datamonContext(ctx)
 		if err != nil {
 			wrapFatalln("create remote stores", err)
 			return

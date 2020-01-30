@@ -26,7 +26,8 @@ Setting a label is analogous to the git command "git tag {label}".`,
 			return
 		}
 
-		remoteStores, err := paramsToDatamonContext(ctx, &datamonFlags)
+		datamonFlagsPtr := &datamonFlags
+		remoteStores, err := datamonFlagsPtr.datamonContext(ctx)
 		if err != nil {
 			wrapFatalln("create remote stores", err)
 			return

@@ -28,7 +28,8 @@ This is analogous to the "git init ..." command.`,
 			wrapFatalln("populate contributor struct", err)
 			return
 		}
-		remoteStores, err := paramsToDatamonContext(ctx, &datamonFlags)
+		datamonFlagsPtr := &datamonFlags
+		remoteStores, err := datamonFlagsPtr.datamonContext(ctx)
 		if err != nil {
 			wrapFatalln("create remote stores", err)
 			return

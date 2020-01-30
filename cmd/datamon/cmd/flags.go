@@ -329,7 +329,7 @@ func (flags *flagsT) setDefaultsFromConfig(c *CLIConfig) {
 
 /** parameters struct to other formats */
 
-func paramsToDatamonContext(ctx context.Context, params *flagsT) (context2.Stores, error) {
+func (params *flagsT) datamonContext(ctx context.Context) (context2.Stores, error) {
 	// here we select a 100% gcs backend strategy (more elaborate strategies could be defined by the context pkg)
 	return gcscontext.MakeContext(ctx, params.context.Descriptor, config.Credential, gcs.Logger(config.mustGetLogger(params)))
 }

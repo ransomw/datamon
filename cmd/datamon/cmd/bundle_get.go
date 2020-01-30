@@ -23,7 +23,8 @@ Prints corresponding bundle metadata if the bundle exists,
 exits with ENOENT status otherwise.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
-		remoteStores, err := paramsToDatamonContext(ctx, &datamonFlags)
+		datamonFlagsPtr := &datamonFlags
+		remoteStores, err := datamonFlagsPtr.datamonContext(ctx)
 		if err != nil {
 			wrapFatalln("create remote stores", err)
 			return
