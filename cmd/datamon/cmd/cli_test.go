@@ -32,6 +32,8 @@ const (
 	destinationDir    = "../../../testdata/cli"
 	sourceData        = destinationDir + "/data"
 	consumedData      = destinationDir + "/downloads"
+	configDirectory = destinationDir + "/config"
+	configPath = configDirectory + "/" + configFile + ".yaml"
 	repo1             = "test-repo1"
 	repo2             = "test-repo2"
 	timeForm          = "2006-01-02 15:04:05.999999999 -0700 MST"
@@ -84,6 +86,13 @@ var testUploadTrees = [][]uploadTree{{
 		size: 200,
 	},
 },
+}
+
+func TestConfigSet(t *testing.T) {
+	cleanup := setupTests(t)
+	defer cleanup()
+
+	require.True(t, true, "placeholder")
 }
 
 func TestCreateRepo(t *testing.T) {

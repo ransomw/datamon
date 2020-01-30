@@ -15,6 +15,22 @@ import (
 	"google.golang.org/api/option"
 )
 
+type CmdPkgMocks struct{
+	mock.Mock
+}
+
+func (m *CmdPkgMocks) configFileLocation(expandEnv bool) string {
+	return configPath
+}
+
+func MakeConfigFileLocationMock(m *CmdPkgMocks) func(bool) string {
+	return func(expandEnv bool) string {
+		return m.configFileLocation(expandEnv)
+	}
+}
+
+var cmdPkgMocks *CmdPkgMocks
+
 type ExitMocks struct {
 	mock.Mock
 	exitStatuses []int
@@ -127,6 +143,8 @@ func setupTests(t *testing.T) func() {
 	logFatalf = MakeFatalfMock(exitMocks)
 	logFatalln = MakeFatallnMock(exitMocks)
 	osExit = MakeExitMock(exitMocks)
+	cmdPkgMocks = new(CmdPkgMocks)
+	configFileLocation = MakeConfigFileLocationMock(cmdPkgMocks)
 
 	btag := internal.RandStringBytesMaskImprSrc(15)
 
@@ -157,6 +175,8 @@ func setupTests(t *testing.T) func() {
 	c := setupConfig(t, datamonFlags)
 
 	createAllTestUploadTrees(t)
+	err = os.Mkdir(configDirectory, 0666)
+	require.NoError(t, err, "create directory for config file(s)")
 	cleanup := func() {
 		c()
 		_ = os.RemoveAll(destinationDir)
