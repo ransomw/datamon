@@ -142,6 +142,8 @@ func setupTests(t *testing.T) func() {
 	logFatalln = MakeFatallnMock(exitMocks)
 	osExit = MakeExitMock(exitMocks)
 	cmdPkgMocks = new(CmdPkgMocks)
+	// config file location mocked out on test-by-test basis needs reset here for setupConfig()
+	configFileLocation = configFileLocationDefault
 
 	btag := internal.RandStringBytesMaskImprSrc(15)
 
@@ -175,6 +177,7 @@ func setupTests(t *testing.T) func() {
 	err = os.Mkdir(configDirectory, 0777)
 	require.NoError(t, err, "create directory for config file(s)")
 	cleanup := func() {
+		configFileLocation = configFileLocationDefault
 		c()
 		_ = os.RemoveAll(destinationDir)
 		deleteBucket(ctx, t, client, bucketMeta)
@@ -183,7 +186,6 @@ func setupTests(t *testing.T) func() {
 		deleteBucket(ctx, t, client, bucketReadLog)
 		deleteBucket(ctx, t, client, bucketVMeta)
 	}
-	configFileLocation = configFileLocationDefault
 	return cleanup
 }
 
