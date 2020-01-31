@@ -175,7 +175,7 @@ func setupTests(t *testing.T) func() {
 	c := setupConfig(t, datamonFlags)
 
 	createAllTestUploadTrees(t)
-	err = os.Mkdir(configDirectory, 0666)
+	err = os.Mkdir(configDirectory, 0777)
 	require.NoError(t, err, "create directory for config file(s)")
 	cleanup := func() {
 		c()
