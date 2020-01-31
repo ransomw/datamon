@@ -105,6 +105,10 @@ func setupConfig(t *testing.T, flags flagsT) func() {
 	require.NoError(t, err, "couldn't create bucket client")
 	err = client.Bucket(bucketConfig).Create(context.Background(), "onec-co", nil)
 	require.NoError(t, err, "couldn't create config bucket")
+	configFileLocationCurr := configFileLocation
+	configFileLocation = configFileLocationDefault
+	loc := configFileLocation(true)
+	t.Logf("config file location before context create %v", loc)
 	runCmd(t, []string{
 		"context",
 		"create",
@@ -124,6 +128,7 @@ func setupConfig(t *testing.T, flags flagsT) func() {
 		flags.context.Descriptor.ReadLog,
 		//"--loglevel", "debug",
 	}, "test and create context", false)
+	configFileLocation = configFileLocationCurr
 	err = os.Setenv("DATAMON_GLOBAL_CONFIG", bucketConfig)
 	require.NoError(t, err)
 	err = os.Setenv("DATAMON_CONTEXT", testContext)
@@ -216,6 +221,7 @@ func runCmd(t *testing.T, cmd []string, intentMsg string, expectError bool, as .
 
 	datamonFlags.bundle.ID = ""
 	rootCmd.SetArgs(cmd)
+	t.Logf("config file location before rootCmd.Execute %v", configFileLocation(true))
 	require.NoError(t, rootCmd.Execute(), "error executing '"+strings.Join(cmd, " ")+"' : "+intentMsg)
 	if expectError {
 		require.Equal(t, fatalCallsBefore+1, exitMocks.fatalCalls(),
