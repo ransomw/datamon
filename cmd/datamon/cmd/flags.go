@@ -340,14 +340,14 @@ const (
 	destTNonEmpty
 )
 
-func (params *flagsT) destStore(destT DestT,
+func (flags *flagsT) destStore(destT DestT,
 	tmpdirPrefix string,
 ) (storage.Store, error) {
 	var err error
 	var consumableStorePath string
 	var destStore storage.Store
 
-	if tmpdirPrefix != "" && params.bundle.DataPath != "" {
+	if tmpdirPrefix != "" && flags.bundle.DataPath != "" {
 		tmpdirPrefix = ""
 	}
 
@@ -360,9 +360,9 @@ func (params *flagsT) destStore(destT DestT,
 			return nil, fmt.Errorf("couldn't create temporary directory: %w", err)
 		}
 	} else {
-		consumableStorePath, err = sanitizePath(params.bundle.DataPath)
+		consumableStorePath, err = sanitizePath(flags.bundle.DataPath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to sanitize destination: %s: %w", params.bundle.DataPath, err)
+			return nil, fmt.Errorf("failed to sanitize destination: %s: %w", flags.bundle.DataPath, err)
 		}
 		createPath(consumableStorePath)
 	}

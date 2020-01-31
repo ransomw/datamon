@@ -23,13 +23,11 @@ func (m *CmdPkgMocks) configFileLocation(expandEnv bool) string {
 	return configPath
 }
 
-func MakeConfigFileLocationMock(m *CmdPkgMocks) func(bool) string {
-	return func(expandEnv bool) string {
-		return m.configFileLocation(expandEnv)
-	}
-}
-
 var cmdPkgMocks *CmdPkgMocks
+
+func configFileLocationMock(expandEnv bool) string {
+	return cmdPkgMocks.configFileLocation(expandEnv)
+}
 
 type ExitMocks struct {
 	mock.Mock
@@ -144,7 +142,6 @@ func setupTests(t *testing.T) func() {
 	logFatalln = MakeFatallnMock(exitMocks)
 	osExit = MakeExitMock(exitMocks)
 	cmdPkgMocks = new(CmdPkgMocks)
-	configFileLocation = MakeConfigFileLocationMock(cmdPkgMocks)
 
 	btag := internal.RandStringBytesMaskImprSrc(15)
 
@@ -186,6 +183,7 @@ func setupTests(t *testing.T) func() {
 		deleteBucket(ctx, t, client, bucketReadLog)
 		deleteBucket(ctx, t, client, bucketVMeta)
 	}
+	configFileLocation = configFileLocationDefault
 	return cleanup
 }
 
