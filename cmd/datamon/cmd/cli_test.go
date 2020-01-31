@@ -93,7 +93,6 @@ func TestConfigSet(t *testing.T) {
 		testConfigName     = "remote-test-config-bucket"
 		testCredentialPath = "/Users/datamonuser/.config/gcloud/application_default_credentials.json"
 	)
-	t.SkipNow()
 	cleanup := setupTests(t)
 	defer cleanup()
 	configFileLocation = configFileLocationMock
