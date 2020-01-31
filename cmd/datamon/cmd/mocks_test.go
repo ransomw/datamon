@@ -15,7 +15,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-type CmdPkgMocks struct{
+type CmdPkgMocks struct {
 	mock.Mock
 }
 

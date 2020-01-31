@@ -71,7 +71,6 @@ func (c *CLIConfig) contributor() (model.Contributor, error) {
 	return authorizer.Principal(c.Credential)
 }
 
-
 func handleRemoteConfigErr(store storage.Store, err error) (storage.Store, error) {
 	// provide extra explanation and guidance about the error
 	switch {

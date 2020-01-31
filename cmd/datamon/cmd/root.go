@@ -120,7 +120,7 @@ func initConfig() {
 		wrapFatalln("read config from file and env vars", err)
 	}
 
-// ??? what errors follow if this block is removed?
+	// ??? what errors follow if this block is removed?
 	if config.Credential != "" {
 		_ = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", config.Credential)
 	}
@@ -135,7 +135,7 @@ func initConfig() {
 	datamonFlagsPtr := &datamonFlags
 	datamonFlagsPtr.setDefaultsFromConfig(config)
 
-//	config.setDatamonParams(&datamonFlags)
+	//	config.setDatamonParams(&datamonFlags)
 
 	if datamonFlags.context.Descriptor.Name == "" {
 		datamonFlags.context.Descriptor.Name = "datamon-dev"

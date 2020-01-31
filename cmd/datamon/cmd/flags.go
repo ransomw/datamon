@@ -421,7 +421,7 @@ func (in *cliOptionInputs) datamonContext(ctx context.Context) (context2.Stores,
 
 func (in *cliOptionInputs) srcStore(ctx context.Context, create bool) (storage.Store, error) {
 	var (
-		err error
+		err                 error
 		consumableStorePath string
 	)
 	switch {
@@ -492,9 +492,9 @@ func (in *cliOptionInputs) populateRemoteConfig() {
 	}
 	configStore, err := handleRemoteConfigErr(
 		gcs.New(context.Background(),
-		flags.core.Config,
-		config.Credential,
-		gcs.Logger(in.mustGetLogger())))
+			flags.core.Config,
+			config.Credential,
+			gcs.Logger(in.mustGetLogger())))
 	if err != nil {
 		wrapFatalln("failed to get config store", err)
 		return
