@@ -202,6 +202,7 @@ func runCmd(t *testing.T, cmd []string, intentMsg string, expectError bool, as .
 	bucketReadLog := datamonFlags.context.Descriptor.ReadLog
 	bucketVMeta := datamonFlags.context.Descriptor.VMetadata
 	config := datamonFlags.core.Config
+	credFile := datamonFlags.root.credFile
 
 	datamonFlags = flagsT{}
 	datamonFlags.context.Descriptor.Metadata = bucketMeta
@@ -222,6 +223,7 @@ func runCmd(t *testing.T, cmd []string, intentMsg string, expectError bool, as .
 	datamonFlags.bundle.ID = ""
 	rootCmd.SetArgs(cmd)
 	t.Logf("config file location before rootCmd.Execute %v", configFileLocation(true))
+	t.Logf("credFile location before rootCmd.Execute %v", datamonFlags.root.credFile)
 	require.NoError(t, rootCmd.Execute(), "error executing '"+strings.Join(cmd, " ")+"' : "+intentMsg)
 	if expectError {
 		require.Equal(t, fatalCallsBefore+1, exitMocks.fatalCalls(),
@@ -229,5 +231,16 @@ func runCmd(t *testing.T, cmd []string, intentMsg string, expectError bool, as .
 	} else {
 		require.Equal(t, fatalCallsBefore, exitMocks.fatalCalls(),
 			"unexpected error in mocks on '"+strings.Join(cmd, " ")+"' : "+intentMsg)
+	}
+	//
+	var passedCredentialFlag bool
+	for _, c := range cmd {
+		if c == "--credential" {
+			passedCredentialFlag = true
+			break
+		}
+	}
+	if passedCredentialFlag {
+		datamonFlags.root.credFile = credFile
 	}
 }
