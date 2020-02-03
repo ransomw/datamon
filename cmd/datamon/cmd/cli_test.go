@@ -115,6 +115,12 @@ func TestConfigSet(t *testing.T) {
 		"set",
 		"--credential", testCredentialPath,
 	}, "set credentials only", false)
+	defer func() {
+		t.Logf("cleaning up google application credentials")
+		require.NoError(t, os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS"),
+			"cleanup GAC env var")
+		t.Logf("cleaned up google application credentials")
+	}()
 	cliConfig, err = readConfig(configPath)
 	require.NoError(t, err, "read in config okay")
 	// ??? reading over implementation, not clear why unspecified values are preserved..
