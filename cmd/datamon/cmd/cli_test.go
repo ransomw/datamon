@@ -111,14 +111,18 @@ func TestConfigSet(t *testing.T) {
 		"found value from `config set` in parsed config file")
 	require.Equal(t, "", cliConfig.Credential,
 		"there is no default credential at the config write and read level of abstraction")
+	credsInit, _ := os.LookupEnv("GOOGLE_APPLICATION_CREDENTIALS")
 	runCmd(t, []string{"config",
 		"set",
 		"--credential", testCredentialPath,
 	}, "set credentials only", false)
 	defer func() {
-		t.Logf("cleaning up google application credentials")
-		require.NoError(t, os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS"),
-			"cleanup GAC env var")
+		credsEnd, _ := os.LookupEnv("GOOGLE_APPLICATION_CREDENTIALS")
+		t.Logf("cleaning up google application credentials. " +
+			"initial creds: '%v'. end creds: '%v'", credsInit, credsEnd)
+		require.NoError(t,
+			os.Setenv("GOOGLE_APPLICATION_CREDENTIALS",
+				credsInit))
 		t.Logf("cleaned up google application credentials")
 	}()
 	cliConfig, err = readConfig(configPath)
