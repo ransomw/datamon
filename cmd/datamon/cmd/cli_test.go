@@ -111,6 +111,7 @@ func TestConfigSet(t *testing.T) {
 		"found value from `config set` in parsed config file")
 	require.Equal(t, "", cliConfig.Credential,
 		"there is no default credential at the config write and read level of abstraction")
+	t.SkipNow()
 	credsInit, _ := os.LookupEnv("GOOGLE_APPLICATION_CREDENTIALS")
 	runCmd(t, []string{"config",
 		"set",
