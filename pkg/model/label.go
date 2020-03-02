@@ -7,6 +7,8 @@ import (
 	"unicode"
 
 	"net/mail"
+
+	"github.com/oneconcern/datamon/pkg/storage"
 )
 
 // LabelDescriptor describes a label
@@ -64,7 +66,18 @@ func GetArchivePathPrefixToLabels(repo string, prefixes ...string) string {
 //
 // Example:
 //  labels/{repo}/{label}/label.yaml
+func origGetArchivePathToLabel(repo string, labelName string) string {
+	return fmt.Sprint(GetArchivePathPrefixToLabels(repo), labelName, "/", labelDescriptorFile)
+}
+
+/*
 func GetArchivePathToLabel(repo string, labelName string) string {
+	fmt.Println(storage.OverWrite)
+	return fmt.Sprint(GetArchivePathPrefixToLabels(repo), labelName, "/", labelDescriptorFile)
+}
+*/
+
+func GetArchivePathToLabel(repo string, labelName string, labelStore storage.Store) string {
 	return fmt.Sprint(GetArchivePathPrefixToLabels(repo), labelName, "/", labelDescriptorFile)
 }
 

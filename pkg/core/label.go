@@ -64,16 +64,17 @@ func (label *Label) UploadDescriptor(ctx context.Context, bundle *Bundle) (err e
 	if err != nil {
 		return err
 	}
-	lsCRC, ok := bundle.contextStores.VMetadata().(storage.StoreCRC)
+	labelStore := bundle.contextStores.VMetadata()
+	labelStoreCRC, ok := bundle.contextStores.VMetadata().(storage.StoreCRC)
 	if ok {
 		crc := crc32.Checksum(buffer, crc32.MakeTable(crc32.Castagnoli))
-		err = lsCRC.PutCRC(ctx,
-			model.GetArchivePathToLabel(bundle.RepoID, label.Descriptor.Name),
+		err = labelStoreCRC.PutCRC(ctx,
+			model.GetArchivePathToLabel(bundle.RepoID, label.Descriptor.Name, labelStore),
 			bytes.NewReader(buffer), storage.OverWrite, crc)
 
 	} else {
-		err = bundle.contextStores.VMetadata().Put(ctx,
-			model.GetArchivePathToLabel(bundle.RepoID, label.Descriptor.Name),
+		err = labelStore.Put(ctx,
+			model.GetArchivePathToLabel(bundle.RepoID, label.Descriptor.Name, labelStore),
 			bytes.NewReader(buffer), storage.OverWrite)
 	}
 	if err != nil {
@@ -96,7 +97,8 @@ func (label *Label) DownloadDescriptor(ctx context.Context, bundle *Bundle, chec
 			return err
 		}
 	}
-	archivePath := model.GetArchivePathToLabel(bundle.RepoID, label.Descriptor.Name)
+	labelStore := getLabelStore(bundle.contextStores)
+	archivePath := model.GetArchivePathToLabel(bundle.RepoID, label.Descriptor.Name, labelStore)
 	has, err := getLabelStore(bundle.contextStores).Has(context.Background(), archivePath)
 	if err != nil {
 		return err
@@ -104,7 +106,7 @@ func (label *Label) DownloadDescriptor(ctx context.Context, bundle *Bundle, chec
 	if !has {
 		return status.ErrNotFound
 	}
-	rdr, err := getLabelStore(bundle.contextStores).Get(context.Background(), archivePath)
+	rdr, err := labelStore.Get(context.Background(), archivePath)
 	if err != nil {
 		return err
 	}
