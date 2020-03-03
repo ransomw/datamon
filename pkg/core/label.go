@@ -64,17 +64,24 @@ func (label *Label) UploadDescriptor(ctx context.Context, bundle *Bundle) (err e
 	if err != nil {
 		return err
 	}
+
+
+
+iter := new(model.ArchivePathToLabelIterator)
+currPath := iter.Next()
+
+
 	labelStore := bundle.contextStores.VMetadata()
 	labelStoreCRC, ok := bundle.contextStores.VMetadata().(storage.StoreCRC)
 	if ok {
 		crc := crc32.Checksum(buffer, crc32.MakeTable(crc32.Castagnoli))
 		err = labelStoreCRC.PutCRC(ctx,
-			model.GetArchivePathToLabel(bundle.RepoID, label.Descriptor.Name, labelStore),
+			model.GetArchivePathToLabelUpload(bundle.RepoID, label.Descriptor.Name, labelStore),
 			bytes.NewReader(buffer), storage.OverWrite, crc)
 
 	} else {
 		err = labelStore.Put(ctx,
-			model.GetArchivePathToLabel(bundle.RepoID, label.Descriptor.Name, labelStore),
+			model.GetArchivePathToLabelUpload(bundle.RepoID, label.Descriptor.Name, labelStore),
 			bytes.NewReader(buffer), storage.OverWrite)
 	}
 	if err != nil {

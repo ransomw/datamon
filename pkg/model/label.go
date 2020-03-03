@@ -70,6 +70,22 @@ func origGetArchivePathToLabel(repo string, labelName string) string {
 	return fmt.Sprint(GetArchivePathPrefixToLabels(repo), labelName, "/", labelDescriptorFile)
 }
 
+type ArchivePathToLabelIterator struct {
+	numLabelFiles int
+}
+
+func (iter *ArchivePathToLabelIterator) Next() string {
+	const numZerosPadding = 4
+	defer func() { iter.numLabelFiles++ }()
+	if iter.numLabelFiles == 0 {
+		return fmt.Sprint(GetArchivePathPrefixToLabels(repo), labelName, "/", labelDescriptorFile)
+	}
+	return fmt.Sprint(GetArchivePathPrefixToLabels(repo), labelName, "/",
+		fmt.Sprintf("%" + strconv.Atoi(numZerosPadding) + "d", iter.numLabelFiles),
+		"/", labelDescriptorFile,
+	)
+}
+
 /*
 func GetArchivePathToLabel(repo string, labelName string) string {
 	fmt.Println(storage.OverWrite)
@@ -77,7 +93,33 @@ func GetArchivePathToLabel(repo string, labelName string) string {
 }
 */
 
+func archivePathToLabelExists(archivePathToLabel string, labelStore storage.Store) (string, error) {
+
+}
+
+
 func GetArchivePathToLabel(repo string, labelName string, labelStore storage.Store) string {
+	return fmt.Sprint(GetArchivePathPrefixToLabels(repo), labelName, "/", labelDescriptorFile)
+}
+
+// on label upload, read through all paths, uploading to most recent unused path,
+// with error if the path gets another upload between determining what the unused path is
+// and attempting to upload.
+//
+// wrap the above in try- try-again for some fixed constant, returning an error from the public
+// func to download labels if number of tries exceeds fixed constant.
+
+func GetArchivePathToLabelUpload(repo string, labelName string, labelStore storage.Store) string {
+	return fmt.Sprint(GetArchivePathPrefixToLabels(repo), labelName, "/", labelDescriptorFile)
+}
+
+// on download, read thru all label paths, downloading and storing latest label and its path,
+// then re-read thru all latest label paths, returning error if label path has changed.
+//
+// wrap the above in try- try-again for some fixed constant, returning an error from the public
+// func to download labels if number of tries exceeds fixed constant.
+
+func GetArchivePathToLabelDownload(repo string, labelName string, labelStore storage.Store) string {
 	return fmt.Sprint(GetArchivePathPrefixToLabels(repo), labelName, "/", labelDescriptorFile)
 }
 
