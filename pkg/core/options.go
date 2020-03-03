@@ -17,6 +17,8 @@ type Settings struct {
 	profilingEnabled bool
 	memProfDir       string
 
+	label string
+
 	metrics.Enable
 	//m *M // TODO(fred): enable metrics for list operations
 }
@@ -73,6 +75,13 @@ func WithMemProf(memProfDir string) Option {
 func WithMetrics(enabled bool) Option {
 	return func(s *Settings) {
 		s.EnableMetrics(enabled)
+	}
+}
+
+// WithLabel toggles metrics for the core package and its dependencies (e.g. cafs)
+func WithLabel(label string) Option {
+	return func(s *Settings) {
+		s.label = label
 	}
 }
 

@@ -257,21 +257,31 @@ func (g *gcs) Keys(ctx context.Context) (keys []string, err error) {
 	return keys, nil
 }
 
-func (g *gcs) KeysPrefix(ctx context.Context, pageToken string, prefix string, delimiter string, count int) (keys []string, next string, err error) {
-	g.l.Debug("Start KeysPrefix", zap.String("start", pageToken), zap.String("prefix", prefix))
+func (g *gcs) KeysPrefix(
+	ctx context.Context,
+	pageToken string,
+	prefix string,
+	delimiter string,
+	count int,
+) (keys []string, next string, err error) {
+	logger := g.l.With(
+		zap.String("start", pageToken),
+		zap.String("prefix", prefix),
+		zap.Int("keys", len(keys)),
+		zap.Error(err))
+	logger.Debug("Start KeysPrefix")
 	defer func() {
-		g.l.Debug("End KeysPrefix", zap.String("start", pageToken), zap.String("prefix", prefix), zap.Int("keys", len(keys)), zap.Error(err))
+		logger.Debug("End KeysPrefix")
 	}()
+
 	itr := g.readOnlyClient.Bucket(g.bucket).Objects(ctx, &gcsStorage.Query{Prefix: prefix, Delimiter: delimiter})
-
 	var objects []*gcsStorage.ObjectAttrs
-
-	keys = make([]string, 0, count)
 	next, err = iterator.NewPager(itr, count, pageToken).NextPage(&objects)
 	if err != nil {
 		return nil, "", toSentinelErrors(err)
 	}
 
+	keys = make([]string, 0, count)
 	for _, objAttrs := range objects {
 		if objAttrs.Prefix != "" {
 			keys = append(keys, objAttrs.Prefix)
@@ -280,6 +290,48 @@ func (g *gcs) KeysPrefix(ctx context.Context, pageToken string, prefix string, d
 		}
 	}
 	return
+}
+
+func (g *gcs) KeyVersions(ctx context.Context, key string) ([]string, error) {
+	//	var err error
+	logger := g.l.With(zap.String("key", key))
+	logger.Debug("start KeyVersions")
+
+	versionsPrefix := func(pageToken string) ([]string, string, error) {
+		const versionsPerPage = 100
+		itr := g.readOnlyClient.Bucket(g.bucket).Objects(ctx, &gcsStorage.Query{Prefix: key, Versions: true})
+		var objects []*gcsStorage.ObjectAttrs
+		nextPageToken, err := iterator.NewPager(itr, versionsPerPage, pageToken).NextPage(&objects)
+		if err != nil {
+			return nil, "", toSentinelErrors(err)
+		}
+		keys := make([]string, 0, versionsPerPage)
+		for _, objAttrs := range objects {
+			if objAttrs.Prefix != "" { // ??? is this branch necessary in the case of versions?
+				keys = append(keys, objAttrs.Prefix)
+			} else {
+				keys = append(keys, objAttrs.Name)
+			}
+		}
+		return keys, nextPageToken, nil
+	}
+
+	//	itr := g.readOnlyClient.Bucket(g.bucket).Objects(ctx, &gcsStorage.Query{Prefix: prefix, Delimiter: delimiter})
+
+	pageToken := ""
+	nextPageToken := "sentinel" /* could be any nonempty string to start */
+	versions := make([]string, 0)
+	for nextPageToken != "" {
+		var versionsCurr []string
+		versionsCurr, nextPageToken, err := versionsPrefix(pageToken)
+		if err != nil {
+			return nil, toSentinelErrors(err)
+		}
+		versions = append(versions, versionsCurr...)
+		pageToken = nextPageToken
+	}
+
+	return versions, nil
 }
 
 func (g *gcs) Clear(context.Context) error {

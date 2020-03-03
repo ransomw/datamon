@@ -10,6 +10,7 @@ import (
 	"github.com/oneconcern/datamon/pkg/core/status"
 
 	"github.com/oneconcern/datamon/pkg/model"
+	"github.com/oneconcern/datamon/pkg/storage"
 )
 
 const (
@@ -35,6 +36,7 @@ func ListLabels(repo string, stores context2.Stores, prefix string, opts ...Opti
 // ApplyLabelFunc is a function to be applied on a label
 type ApplyLabelFunc func(model.LabelDescriptor) error
 
+// todo: prefix to opts
 // ListLabelsApply applies some function to the retrieved labels, in lexicographic order of keys.
 func ListLabelsApply(repo string, store context2.Stores, prefix string, apply ApplyLabelFunc, opts ...Option) error {
 	var (
@@ -112,6 +114,10 @@ func listLabelsChan(repo string, stores context2.Stores, prefix string, opts ...
 		bApply(&settings)
 	}
 
+	// todo: validation method on settings (specificify settings type per use-case).
+
+	// settings.label
+
 	batchChan := make(chan labelsEvent, 1) // buffered to 1 to avoid blocking on early errors
 
 	if err := RepoExists(repo, stores); err != nil {
@@ -133,7 +139,15 @@ func listLabelsChan(repo string, stores context2.Stores, prefix string, opts ...
 	keysChan := make(chan keyBatchEvent, 1)
 
 	iterator := func(next string) ([]string, string, error) {
-		return GetLabelStore(stores).KeysPrefix(context.Background(), next, model.GetArchivePathPrefixToLabels(repo, prefix), "", settings.batchSize)
+		if settings.label != "" {
+			return GetLabelStore(stores).KeysPrefix(context.Background(), next,
+				model.GetArchivePathPrefixToLabels(repo, prefix),
+				"", settings.batchSize)
+		} else {
+			versions, versionsErr := GetLabelStore(stores).(storage.StoreVersioned).
+				KeyVersions(context.Background(), settings.label)
+			return versions, "", versionsErr
+		}
 	}
 	// starting keys retrieval
 	wg.Add(1)

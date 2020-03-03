@@ -55,6 +55,14 @@ type StoreCRC interface {
 	PutCRC(context.Context, string, io.Reader, bool, uint32) error
 }
 
+type StoreVersioned interface {
+	// KeyVersions returns all versions of a given key
+	// operating assumptions:
+	// * versions are strings (likely true)
+	// * paging is unnecessary (likely false)
+	KeyVersions(context.Context, string) ([]string, error)
+}
+
 // PipeIO copies data from a reader to a writer using io.Pipe
 func PipeIO(writer io.Writer, reader io.Reader) (n int64, err error) {
 	pr, pw := io.Pipe()
