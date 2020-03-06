@@ -33,7 +33,15 @@ func setup(t testing.TB, numOfObjects int, numOfVersions int) (storage.Store, fu
 
 	client, err := gcsStorage.NewClient(context.TODO(), option.WithScopes(gcsStorage.ScopeFullControl))
 	require.NoError(t, err)
+
+
+if numOfVersions > 1 {
+	err = client.Bucket(bucket).Create(ctx, "onec-co", &gcsStorage.BucketAttrs{VersioningEnabled: true})
+} else {
 	err = client.Bucket(bucket).Create(ctx, "onec-co", nil)
+}
+
+
 	require.NoError(t, err, "Failed to create bucket:"+bucket)
 	t.Logf("Created bucket %s ", bucket)
 
@@ -283,11 +291,11 @@ func TestGcs_KeysPrefix(t *testing.T) {
 }
 
 func TestGcs_KeyVersions(t *testing.T) {
-	t.SkipNow("tbd -- failing")
+//	t.SkipNow("tbd -- failing")
 	//	ctx := context.Background()
-	versions := 2
-	//	gcs, cleanup := setup(t,1, versions)
-	_, cleanup := setup(t, 1, versions)
+//	versions := 2
+	//	gcs, cleanup := setup(t,1, 2)
+	_, cleanup := setup(t, 1, 1)
 	defer cleanup()
 
 }
