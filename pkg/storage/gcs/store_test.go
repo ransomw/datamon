@@ -27,31 +27,34 @@ func constStringWithIndex(i int) string {
 	return longPath + fmt.Sprint(i)
 }
 
-func setup(t testing.TB, numOfObjects int) (storage.Store, func()) {
-
+func setup(t testing.TB, numOfObjects int, numOfVersions int) (storage.Store, func()) {
 	ctx := context.Background()
-
 	bucket := "deleteme-datamontest-" + rand.LetterString(15)
-	t.Logf("Created bucket %s ", bucket)
 
 	client, err := gcsStorage.NewClient(context.TODO(), option.WithScopes(gcsStorage.ScopeFullControl))
 	require.NoError(t, err)
 	err = client.Bucket(bucket).Create(ctx, "onec-co", nil)
 	require.NoError(t, err, "Failed to create bucket:"+bucket)
+	t.Logf("Created bucket %s ", bucket)
 
 	gcs, err := New(context.TODO(), bucket, "") // Use GOOGLE_APPLICATION_CREDENTIALS env variable
 	require.NoError(t, err, "failed to create gcs client")
 	wg := sync.WaitGroup{}
 	create := func(i int, wg *sync.WaitGroup) {
 		defer wg.Done()
-		e := gcs.Put(ctx, constStringWithIndex(i), bytes.NewBufferString(constStringWithIndex(i)), storage.NoOverWrite)
+		path := constStringWithIndex(i)
+		e := gcs.Put(ctx, path,
+			bytes.NewBufferString(path),
+			storage.NoOverWrite)
 		require.NoError(t, e, "Index at: "+fmt.Sprint(i))
 	}
 	for i := 0; i < numOfObjects; i++ {
 		index := i
-		// Use path as payload
-		wg.Add(1)
-		go create(index, &wg)
+		for j := 0; j < numOfVersions; j++ {
+			// Use path as payload
+			wg.Add(1)
+			go create(index, &wg)
+		}
 	}
 	wg.Wait()
 
@@ -89,7 +92,7 @@ func setup(t testing.TB, numOfObjects int) (storage.Store, func()) {
 func TestGcs_Get(t *testing.T) {
 	ctx := context.Background()
 	count := 20
-	gcs, cleanup := setup(t, count)
+	gcs, cleanup := setup(t, count, 1)
 	defer cleanup()
 	for i := 0; i < count; i++ {
 		rdr, err := gcs.Get(ctx, constStringWithIndex(i))
@@ -156,7 +159,7 @@ func TestGcs_Get(t *testing.T) {
 func TestGcs_Has(t *testing.T) {
 	ctx := context.Background()
 	count := 2
-	gcs, cleanup := setup(t, count)
+	gcs, cleanup := setup(t, count, 1)
 	defer cleanup()
 
 	for i := 0; i < count; i++ {
@@ -174,7 +177,7 @@ func TestGcs_Has(t *testing.T) {
 func TestGcs_Put(t *testing.T) {
 	ctx := context.Background()
 	count := 3
-	gcs, cleanup := setup(t, 0)
+	gcs, cleanup := setup(t, 0, 1)
 	defer cleanup()
 	for i := 0; i < count; i++ {
 		err := gcs.Put(ctx, constStringWithIndex(i), bytes.NewBufferString(constStringWithIndex(i)), storage.NoOverWrite)
@@ -195,7 +198,7 @@ func TestGcs_Put(t *testing.T) {
 func TestGcs_Keys(t *testing.T) {
 	ctx := context.Background()
 
-	gcs, cleanup := setup(t, 2)
+	gcs, cleanup := setup(t, 2, 1)
 	defer cleanup()
 
 	key, err := gcs.Keys(ctx)
@@ -208,7 +211,7 @@ func TestGcs_Keys(t *testing.T) {
 func TestGcs_Delete(t *testing.T) {
 	ctx := context.Background()
 	count := 10
-	gcs, cleanup := setup(t, 0)
+	gcs, cleanup := setup(t, 0, 1)
 	defer cleanup()
 
 	for i := 0; i < count; i++ {
@@ -231,7 +234,7 @@ func TestGcs_Delete(t *testing.T) {
 
 func TestGcs_CreateNew(t *testing.T) {
 	ctx := context.Background()
-	gcs, cleanup := setup(t, 0)
+	gcs, cleanup := setup(t, 0, 1)
 	defer cleanup()
 
 	err := gcs.Put(ctx, constStringWithIndex(1), bytes.NewBufferString(constStringWithIndex(1)), storage.NoOverWrite)
@@ -252,7 +255,7 @@ func TestGcs_CreateNew(t *testing.T) {
 func TestGcs_KeysPrefix(t *testing.T) {
 	ctx := context.Background()
 	count := 124
-	gcs, cleanup := setup(t, count)
+	gcs, cleanup := setup(t, count, 1)
 	defer cleanup()
 
 	fetch := count - 1
@@ -277,6 +280,15 @@ func TestGcs_KeysPrefix(t *testing.T) {
 		}
 	}
 	require.Equal(t, count, len(keys))
+}
+
+func TestGcs_KeyVersions(t *testing.T) {
+	//	ctx := context.Background()
+	versions := 2
+	//	gcs, cleanup := setup(t,1, versions)
+	_, cleanup := setup(t, 1, versions)
+	defer cleanup()
+
 }
 
 var TotalObjects = 2156
@@ -320,7 +332,7 @@ func keysPrefix2000(b *testing.B, gcs storage.Store) {
 	listKeysBatch(gcs, b, TotalObjects, 2000)
 }
 func BenchmarkRun(b *testing.B) {
-	gcs, _ := setup(b, TotalObjects)
+	gcs, _ := setup(b, TotalObjects, 1)
 	//defer cleanup()
 	run := func(fn func(b2 *testing.B, gcs storage.Store)) {
 		fn(b, gcs)
