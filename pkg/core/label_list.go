@@ -144,8 +144,9 @@ func listLabelsChan(repo string, stores context2.Stores, prefix string, opts ...
 				model.GetArchivePathPrefixToLabels(repo, prefix),
 				"", settings.batchSize)
 		} else {
-			versions, versionsErr := GetLabelStore(stores).(storage.StoreVersioned).
-				KeyVersions(context.Background(), settings.label)
+			// tbd: sandbox o.(type).method() type assert fail compared to o.(type).method() error
+			versionedStore := GetLabelStore(stores).(storage.StoreVersioned)
+			versions, versionsErr := versionedStore.KeyVersions(context.Background(), settings.label)
 			return versions, "", versionsErr
 		}
 	}
