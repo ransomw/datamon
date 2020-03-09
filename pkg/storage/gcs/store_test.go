@@ -34,26 +34,33 @@ func setup(t testing.TB, numOfObjects int, numOfVersions int) (storage.Store, fu
 	client, err := gcsStorage.NewClient(context.TODO(), option.WithScopes(gcsStorage.ScopeFullControl))
 	require.NoError(t, err)
 
+	versioningEnabled := numOfVersions > 1
 
-if numOfVersions > 1 {
-	err = client.Bucket(bucket).Create(ctx, "onec-co", &gcsStorage.BucketAttrs{VersioningEnabled: true})
-} else {
-	err = client.Bucket(bucket).Create(ctx, "onec-co", nil)
-}
-
-
-	require.NoError(t, err, "Failed to create bucket:"+bucket)
+	require.NoError(t, 
+		client.Bucket(bucket).Create(ctx, "onec-co",
+			&gcsStorage.BucketAttrs{
+				VersioningEnabled: versioningEnabled,
+			}),
+		"Failed to create bucket:"+bucket)
 	t.Logf("Created bucket %s ", bucket)
 
 	gcs, err := New(context.TODO(), bucket, "") // Use GOOGLE_APPLICATION_CREDENTIALS env variable
 	require.NoError(t, err, "failed to create gcs client")
 	wg := sync.WaitGroup{}
+	gcsPut := func(path string) error {
+		buf := bytes.NewBufferString(path)
+		if versioningEnabled {
+		return gcs.Put(ctx, path, buf,
+				storage.OverWrite)
+		} else {
+		return gcs.Put(ctx, path, buf,
+				storage.NoOverWrite)
+		}
+	}
 	create := func(i int, wg *sync.WaitGroup) {
 		defer wg.Done()
 		path := constStringWithIndex(i)
-		e := gcs.Put(ctx, path,
-			bytes.NewBufferString(path),
-			storage.NoOverWrite)
+		e := gcsPut(path)
 		require.NoError(t, e, "Index at: "+fmt.Sprint(i))
 	}
 	for i := 0; i < numOfObjects; i++ {
@@ -69,27 +76,46 @@ if numOfVersions > 1 {
 	cleanup := func() {
 		delete := func(key string, wg *sync.WaitGroup) {
 			defer wg.Done()
+
+/*
+fmt.Printf("deleting key %q\n", key)
 			err = gcs.Delete(ctx, key)
 			require.NoError(t, err, "failed to delete:"+key)
+fmt.Printf("deleted key %q\n", key)
+*/
+
+gcsV := gcs.(storage.StoreVersioned)
+versions, err := gcsV.KeyVersions(ctx, key)
+require.NoError(t, err, "couldn't list versions:"+key)
+
+fmt.Printf("have versions %v\n", versions)
+
+for _, version := range versions {
+fmt.Printf("deleting version %q\n", version)
+	require.NoError(t, gcs.Delete(ctx, version), "failed to delete:"+key+" at version:"+version)
+}
+
+
 		}
 
 		wg := sync.WaitGroup{}
 		for i := 0; i < numOfObjects; i++ {
 			wg.Add(1)
-			delete(constStringWithIndex(i), &wg)
+			path := constStringWithIndex(i)
+			delete(path, &wg)
 		}
 		wg.Wait()
 
 		// Delete any keys created outside of setup at the end of test.
 		var keys []string
-		keys, err = gcs.Keys(ctx)
-		for _, k := range keys {
+		keys, _ = gcs.Keys(ctx)
+		for _, key := range keys {
 			wg.Add(1)
-			delete(k, &wg)
+			delete(key, &wg)
 		}
+
 		wg.Wait()
 		t.Logf("Delete bucket %s ", bucket)
-
 		err = client.Bucket(bucket).Delete(ctx)
 		require.NoError(t, err, "Failed to delete bucket:"+bucket)
 	}
@@ -295,7 +321,7 @@ func TestGcs_KeyVersions(t *testing.T) {
 	//	ctx := context.Background()
 //	versions := 2
 	//	gcs, cleanup := setup(t,1, 2)
-	_, cleanup := setup(t, 1, 1)
+	_, cleanup := setup(t, 1, 2)
 	defer cleanup()
 
 }

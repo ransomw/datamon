@@ -5,7 +5,10 @@ package gcs
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"strconv"
+	"strings"
 
 	"go.uber.org/zap"
 	"google.golang.org/api/iterator"
@@ -37,6 +40,31 @@ func clientOpts(readOnly bool, credentialFile string) []option.ClientOption {
 		opts = append(opts, option.WithCredentialsFile(credentialFile))
 	}
 	return opts
+}
+
+// patch BucketHandle.Object with gsutil object name convention's
+// "strong recommendation" regarding version generation numbers.
+// https://cloud.google.com/storage/docs/naming#objectnames
+func versionedObject(
+	bucketHandle *gcsStorage.BucketHandle,
+	canonicalObjectName string,
+) *gcsStorage.ObjectHandle {
+// todo: validate (elsewhere -- and where?) that object names don't include '#'
+	objectNameAndMaybeVersion := strings.Split(canonicalObjectName, "#")
+	objectName := objectNameAndMaybeVersion[0]
+	var (
+		gen int64
+		err error
+	)
+	gen = -1
+	if len(objectNameAndMaybeVersion) > 1 {
+		versionStr := objectNameAndMaybeVersion[1]
+		gen, err = strconv.ParseInt(versionStr, 10, 64)
+// ??? panic to indicate programming error in use of this internal function, or pass errors up stack?
+		if err != nil { panic(err) }
+	}
+	objectHandle := bucketHandle.Object(objectName)
+	return objectHandle.Generation(gen)
 }
 
 // New builds a new storage object from a bucket string
@@ -71,7 +99,7 @@ func (g *gcs) String() string {
 // Has this object in the store?
 func (g *gcs) Has(ctx context.Context, objectName string) (bool, error) {
 	client := g.readOnlyClient
-	_, err := client.Bucket(g.bucket).Object(objectName).Attrs(ctx)
+	_, err := versionedObject(client.Bucket(g.bucket), objectName).Attrs(ctx)
 	if err != nil {
 		if err == gcsStorage.ErrObjectNotExist {
 			return false, nil
@@ -110,8 +138,8 @@ func (r *gcsReader) ReadAt(p []byte, offset int64) (n int, err error) {
 	defer func() {
 		r.l.Debug("End ReadAt", zap.Int("chunk size", len(p)), zap.Int64("offset", offset), zap.Int("bytes read", n), zap.Error(err))
 	}()
-	objectReader, err := r.g.readOnlyClient.Bucket(r.g.bucket).Object(r.objectName).NewRangeReader(
-		r.g.ctx, offset, int64(len(p)))
+	objectReader, err := versionedObject(r.g.readOnlyClient.Bucket(r.g.bucket), r.objectName).
+		NewRangeReader(r.g.ctx, offset, int64(len(p)))
 	if err != nil {
 		return 0, toSentinelErrors(err)
 	}
@@ -120,7 +148,7 @@ func (r *gcsReader) ReadAt(p []byte, offset int64) (n int, err error) {
 
 func (g *gcs) Get(ctx context.Context, objectName string) (io.ReadCloser, error) {
 	g.l.Debug("Start Get", zap.String("objectName", objectName))
-	objectReader, err := g.readOnlyClient.Bucket(g.bucket).Object(objectName).NewReader(ctx)
+	objectReader, err := versionedObject(g.readOnlyClient.Bucket(g.bucket), objectName).NewReader(ctx)
 	g.l.Debug("End Get", zap.String("objectName", objectName), zap.Error(err))
 	if err != nil {
 		return nil, toSentinelErrors(err)
@@ -134,7 +162,7 @@ func (g *gcs) Get(ctx context.Context, objectName string) (io.ReadCloser, error)
 
 func (g *gcs) GetAttr(ctx context.Context, objectName string) (storage.Attributes, error) {
 	g.l.Debug("Start GetAttr", zap.String("objectName", objectName))
-	attr, err := g.readOnlyClient.Bucket(g.bucket).Object(objectName).Attrs(ctx)
+	attr, err := versionedObject(g.readOnlyClient.Bucket(g.bucket), objectName).Attrs(ctx)
 	g.l.Debug("End GetAttr", zap.String("objectName", objectName), zap.Error(err))
 	if err != nil {
 		return storage.Attributes{}, toSentinelErrors(err)
@@ -156,7 +184,8 @@ func (g *gcs) GetAt(ctx context.Context, objectName string) (io.ReaderAt, error)
 
 func (g *gcs) Touch(ctx context.Context, objectName string) error {
 	g.l.Debug("Start Touch", zap.String("objectName", objectName))
-	_, err := g.client.Bucket(g.bucket).Object(objectName).Update(ctx, gcsStorage.ObjectAttrsToUpdate{})
+	_, err := versionedObject(g.client.Bucket(g.bucket), objectName).
+		Update(ctx, gcsStorage.ObjectAttrsToUpdate{})
 	g.l.Debug("End touch", zap.String("objectName", objectName), zap.Error(err))
 	return toSentinelErrors(err)
 }
@@ -185,11 +214,11 @@ func (g *gcs) Put(ctx context.Context, objectName string, reader io.Reader, newO
 		b = true
 	}
 	if newObject {
-		writer = g.client.Bucket(g.bucket).Object(objectName).If(gcsStorage.Conditions{
+		writer = versionedObject(g.client.Bucket(g.bucket), objectName).If(gcsStorage.Conditions{
 			DoesNotExist: b,
 		}).NewWriter(ctx)
 	} else {
-		writer = g.client.Bucket(g.bucket).Object(objectName).NewWriter(ctx)
+		writer = versionedObject(g.client.Bucket(g.bucket), objectName).NewWriter(ctx)
 	}
 	g.l.Debug("Start Put PipeIO", zap.String("objectName", objectName))
 	_, err = storage.PipeIO(writer, readCloser{reader: reader})
@@ -209,11 +238,11 @@ func (g *gcs) PutCRC(ctx context.Context, objectName string, reader io.Reader, d
 	// Put if not present
 	var writer *gcsStorage.Writer
 	if doesNotExist {
-		writer = g.client.Bucket(g.bucket).Object(objectName).If(gcsStorage.Conditions{
+		writer = versionedObject(g.client.Bucket(g.bucket), objectName).If(gcsStorage.Conditions{
 			DoesNotExist: doesNotExist,
 		}).NewWriter(ctx)
 	} else {
-		writer = g.client.Bucket(g.bucket).Object(objectName).NewWriter(ctx)
+		writer = versionedObject(g.client.Bucket(g.bucket), objectName).NewWriter(ctx)
 	}
 	writer.CRC32C = crc
 	g.l.Debug("Start PutCRC PipeIO", zap.String("objectName", objectName))
@@ -228,7 +257,7 @@ func (g *gcs) PutCRC(ctx context.Context, objectName string, reader io.Reader, d
 
 func (g *gcs) Delete(ctx context.Context, objectName string) (err error) {
 	g.l.Debug("Start Delete", zap.String("objectName", objectName))
-	err = toSentinelErrors(g.client.Bucket(g.bucket).Object(objectName).Delete(ctx))
+	err = toSentinelErrors(versionedObject(g.client.Bucket(g.bucket), objectName).Delete(ctx))
 	g.l.Debug("End Delete", zap.String("objectName", objectName), zap.Error(err))
 	return
 }
@@ -293,6 +322,9 @@ func (g *gcs) KeysPrefix(
 }
 
 func (g *gcs) KeyVersions(ctx context.Context, key string) ([]string, error) {
+
+fmt.Println("top KeyVersions")
+
 	//	var err error
 	logger := g.l.With(zap.String("key", key))
 	logger.Debug("start KeyVersions")
@@ -305,30 +337,31 @@ func (g *gcs) KeyVersions(ctx context.Context, key string) ([]string, error) {
 		if err != nil {
 			return nil, "", toSentinelErrors(err)
 		}
-		keys := make([]string, 0, versionsPerPage)
+		versions := make([]string, 0, versionsPerPage)
 		for _, objAttrs := range objects {
-			if objAttrs.Prefix != "" { // ??? is this branch necessary in the case of versions?
-				keys = append(keys, objAttrs.Prefix)
-			} else {
-				keys = append(keys, objAttrs.Name)
-			}
+
+fmt.Printf("adding version from objAttrs: %v\n", objAttrs)
+fmt.Printf("generation number is %d\n", objAttrs.Generation)
+fmt.Printf("Prefix is %q\n", objAttrs.Prefix)
+
+
+			versions = append(versions, objAttrs.Name+"#"+strconv.FormatInt(objAttrs.Generation, 10))
 		}
-		return keys, nextPageToken, nil
+		return versions, nextPageToken, nil
 	}
 
 	//	itr := g.readOnlyClient.Bucket(g.bucket).Objects(ctx, &gcsStorage.Query{Prefix: prefix, Delimiter: delimiter})
 
 	pageToken := ""
-	nextPageToken := "sentinel" /* could be any nonempty string to start */
 	versions := make([]string, 0)
-	for nextPageToken != "" {
+	for {
 		var versionsCurr []string
-		versionsCurr, nextPageToken, err := versionsPrefix(pageToken)
+		versionsCurr, pageToken, err := versionsPrefix(pageToken)
 		if err != nil {
 			return nil, toSentinelErrors(err)
 		}
 		versions = append(versions, versionsCurr...)
-		pageToken = nextPageToken
+		if pageToken == "" { break }
 	}
 
 	return versions, nil
