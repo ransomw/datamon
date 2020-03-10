@@ -33,21 +33,40 @@ type Attributes struct {
 // Implementations of this interface are assumed to be fairly simple.
 type Store interface {
 	String() string
-	Has(context.Context, string) (bool, error)
-	Get(context.Context, string) (io.ReadCloser, error)
-	GetAttr(context.Context, string) (Attributes, error)
-	GetAt(context.Context, string) (io.ReaderAt, error)
-	Touch(context.Context, string) error
-	Put(context.Context, string, io.Reader, bool) error
-	Delete(context.Context, string) error
+	// Has this object in the store?
+	Has(context.Context, string) (bool, error)   /// --nov
+	// Get this object's backing bytes.
+	Get(context.Context, string) (io.ReadCloser, error) ///
+	// GetAttr looks up the Attributes of this object.
+	GetAttr(context.Context, string) (Attributes, error) ///
+	// Get this object's backing bytes.
+	GetAt(context.Context, string) (io.ReaderAt, error) ///
+	// Touch, like the usual *nix verb, touch(1), changes the object's modify time.
+	// Unlike touch(1), it does _not_ create an object if it doesn't exist.
+	Touch(context.Context, string) error /// --nov
+	// Put writes bytes to a named object in the store.
+	Put(context.Context, string, io.Reader, bool) error /// --nov
+	// Delete removes the specified object from the store.
+	// ??? design affordances re. versions? e.g. --
+	// - opt to remove all versons
+	// - opt (or different function elsewhere) to rollback to previous version?
+	Delete(context.Context, string) error /// --v
+	// ??? what's the intent of this function, again?
 	Clear(context.Context) error
 
 	// Keys returns all keys known to the store.
-	// Depending on the implementation, some limit may exist on the maximum number of such returned keys
+	// Depending on the implementation, some limit on the maximum number
+	// of such returned keys may exist.
 	Keys(context.Context) ([]string, error)
 
 	// KeyPrefix provides a paginated key iterator using "pageToken" as the next starting point
-	KeysPrefix(ctx context.Context, pageToken string, prefix string, delimiter string, count int) ([]string, string, error)
+	KeysPrefix(
+		ctx context.Context,
+		pageToken string,
+		prefix string,
+		delimiter string,
+		count int,
+	) ([]string, string, error) /////
 }
 
 // StoreCRC knows how to update an object with a computed CRC checksum

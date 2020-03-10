@@ -50,6 +50,10 @@ func versionedObject(
 	canonicalObjectName string,
 ) *gcsStorage.ObjectHandle {
 	// todo: validate (elsewhere -- and where?) that object names don't include '#'
+	// todo: strategy for compatability with existing implementation,
+	//   wherein object names don't necessarily adhere to the convention.  ideas:
+	// - migrate data in bulk, possibly resulting in some reusable scaffolding for future migrations
+	// - ??? unambiguous + compatible convention?
 	objectNameAndMaybeVersion := strings.Split(canonicalObjectName, "#")
 	objectName := objectNameAndMaybeVersion[0]
 	var (
