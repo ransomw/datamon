@@ -36,7 +36,7 @@ func setup(t testing.TB, numOfObjects int, numOfVersions int) (storage.Store, fu
 
 	versioningEnabled := numOfVersions > 1
 
-	require.NoError(t, 
+	require.NoError(t,
 		client.Bucket(bucket).Create(ctx, "onec-co",
 			&gcsStorage.BucketAttrs{
 				VersioningEnabled: versioningEnabled,
@@ -50,10 +50,10 @@ func setup(t testing.TB, numOfObjects int, numOfVersions int) (storage.Store, fu
 	gcsPut := func(path string) error {
 		buf := bytes.NewBufferString(path)
 		if versioningEnabled {
-		return gcs.Put(ctx, path, buf,
+			return gcs.Put(ctx, path, buf,
 				storage.OverWrite)
 		} else {
-		return gcs.Put(ctx, path, buf,
+			return gcs.Put(ctx, path, buf,
 				storage.NoOverWrite)
 		}
 	}
@@ -77,24 +77,23 @@ func setup(t testing.TB, numOfObjects int, numOfVersions int) (storage.Store, fu
 		delete := func(key string, wg *sync.WaitGroup) {
 			defer wg.Done()
 
-/*
-fmt.Printf("deleting key %q\n", key)
-			err = gcs.Delete(ctx, key)
-			require.NoError(t, err, "failed to delete:"+key)
-fmt.Printf("deleted key %q\n", key)
-*/
+			/*
+			   fmt.Printf("deleting key %q\n", key)
+			   			err = gcs.Delete(ctx, key)
+			   			require.NoError(t, err, "failed to delete:"+key)
+			   fmt.Printf("deleted key %q\n", key)
+			*/
 
-gcsV := gcs.(storage.StoreVersioned)
-versions, err := gcsV.KeyVersions(ctx, key)
-require.NoError(t, err, "couldn't list versions:"+key)
+			gcsV := gcs.(storage.StoreVersioned)
+			versions, err := gcsV.KeyVersions(ctx, key)
+			require.NoError(t, err, "couldn't list versions:"+key)
 
-fmt.Printf("have versions %v\n", versions)
+			fmt.Printf("have versions %v\n", versions)
 
-for _, version := range versions {
-fmt.Printf("deleting version %q\n", version)
-	require.NoError(t, gcs.Delete(ctx, version), "failed to delete:"+key+" at version:"+version)
-}
-
+			for _, version := range versions {
+				fmt.Printf("deleting version %q\n", version)
+				require.NoError(t, gcs.Delete(ctx, version), "failed to delete:"+key+" at version:"+version)
+			}
 
 		}
 
@@ -317,9 +316,9 @@ func TestGcs_KeysPrefix(t *testing.T) {
 }
 
 func TestGcs_KeyVersions(t *testing.T) {
-//	t.SkipNow("tbd -- failing")
+	//	t.SkipNow("tbd -- failing")
 	//	ctx := context.Background()
-//	versions := 2
+	//	versions := 2
 	//	gcs, cleanup := setup(t,1, 2)
 	_, cleanup := setup(t, 1, 2)
 	defer cleanup()

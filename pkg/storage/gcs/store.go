@@ -49,7 +49,7 @@ func versionedObject(
 	bucketHandle *gcsStorage.BucketHandle,
 	canonicalObjectName string,
 ) *gcsStorage.ObjectHandle {
-// todo: validate (elsewhere -- and where?) that object names don't include '#'
+	// todo: validate (elsewhere -- and where?) that object names don't include '#'
 	objectNameAndMaybeVersion := strings.Split(canonicalObjectName, "#")
 	objectName := objectNameAndMaybeVersion[0]
 	var (
@@ -60,8 +60,10 @@ func versionedObject(
 	if len(objectNameAndMaybeVersion) > 1 {
 		versionStr := objectNameAndMaybeVersion[1]
 		gen, err = strconv.ParseInt(versionStr, 10, 64)
-// ??? panic to indicate programming error in use of this internal function, or pass errors up stack?
-		if err != nil { panic(err) }
+		// ??? panic to indicate programming error in use of this internal function, or pass errors up stack?
+		if err != nil {
+			panic(err)
+		}
 	}
 	objectHandle := bucketHandle.Object(objectName)
 	return objectHandle.Generation(gen)
@@ -323,7 +325,7 @@ func (g *gcs) KeysPrefix(
 
 func (g *gcs) KeyVersions(ctx context.Context, key string) ([]string, error) {
 
-fmt.Println("top KeyVersions")
+	fmt.Println("top KeyVersions")
 
 	//	var err error
 	logger := g.l.With(zap.String("key", key))
@@ -340,10 +342,9 @@ fmt.Println("top KeyVersions")
 		versions := make([]string, 0, versionsPerPage)
 		for _, objAttrs := range objects {
 
-fmt.Printf("adding version from objAttrs: %v\n", objAttrs)
-fmt.Printf("generation number is %d\n", objAttrs.Generation)
-fmt.Printf("Prefix is %q\n", objAttrs.Prefix)
-
+			fmt.Printf("adding version from objAttrs: %v\n", objAttrs)
+			fmt.Printf("generation number is %d\n", objAttrs.Generation)
+			fmt.Printf("Prefix is %q\n", objAttrs.Prefix)
 
 			versions = append(versions, objAttrs.Name+"#"+strconv.FormatInt(objAttrs.Generation, 10))
 		}
@@ -361,7 +362,9 @@ fmt.Printf("Prefix is %q\n", objAttrs.Prefix)
 			return nil, toSentinelErrors(err)
 		}
 		versions = append(versions, versionsCurr...)
-		if pageToken == "" { break }
+		if pageToken == "" {
+			break
+		}
 	}
 
 	return versions, nil
