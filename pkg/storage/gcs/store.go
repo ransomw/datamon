@@ -324,9 +324,6 @@ func (g *gcs) KeysPrefix(
 }
 
 func (g *gcs) KeyVersions(ctx context.Context, key string) ([]string, error) {
-
-	fmt.Println("top KeyVersions")
-
 	//	var err error
 	logger := g.l.With(zap.String("key", key))
 	logger.Debug("start KeyVersions")
@@ -350,8 +347,6 @@ func (g *gcs) KeyVersions(ctx context.Context, key string) ([]string, error) {
 		}
 		return versions, nextPageToken, nil
 	}
-
-	//	itr := g.readOnlyClient.Bucket(g.bucket).Objects(ctx, &gcsStorage.Query{Prefix: prefix, Delimiter: delimiter})
 
 	pageToken := ""
 	versions := make([]string, 0)

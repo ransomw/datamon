@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -76,22 +77,12 @@ func setup(t testing.TB, numOfObjects int, numOfVersions int) (storage.Store, fu
 	cleanup := func() {
 		delete := func(key string, wg *sync.WaitGroup) {
 			defer wg.Done()
-
-			/*
-			   fmt.Printf("deleting key %q\n", key)
-			   			err = gcs.Delete(ctx, key)
-			   			require.NoError(t, err, "failed to delete:"+key)
-			   fmt.Printf("deleted key %q\n", key)
-			*/
-
 			gcsV := gcs.(storage.StoreVersioned)
 			versions, err := gcsV.KeyVersions(ctx, key)
 			require.NoError(t, err, "couldn't list versions:"+key)
-
-			fmt.Printf("have versions %v\n", versions)
-
+			t.Logf("have versions %v\n", versions)
 			for _, version := range versions {
-				fmt.Printf("deleting version %q\n", version)
+				t.Logf("deleting version %q\n", version)
 				require.NoError(t, gcs.Delete(ctx, version), "failed to delete:"+key+" at version:"+version)
 			}
 
@@ -241,6 +232,44 @@ func TestGcs_Keys(t *testing.T) {
 
 }
 
+func TestGcs_KeyVersions(t *testing.T) {
+	//	t.SkipNow("tbd -- failing")
+	ctx := context.Background()
+	numOfObjects := 4
+	numOfVersions := 3
+	gcs, cleanup := setup(t, numOfObjects, numOfVersions)
+	//	_, cleanup := setup(t, numOfObjects, numOfVersions)
+	defer cleanup()
+
+	gcsV := gcs.(storage.StoreVersioned)
+
+	keys, err := gcs.Keys(ctx)
+	require.NoError(t, err, "list keys")
+
+	assert.Len(t, keys, numOfObjects)
+
+	parseVersionString := func(version string) (string, int64) {
+		objectNameAndMaybeVersion := strings.Split(version, "#")
+		assert.Len(t, objectNameAndMaybeVersion, 2)
+		generation, err := strconv.ParseInt(objectNameAndMaybeVersion[1], 10, 64)
+		require.NoError(t, err, "generation doesn't parse")
+		return objectNameAndMaybeVersion[0], generation
+	}
+
+	for _, key := range keys {
+		versions := make(map[int64]bool)
+		versionStrings, err := gcsV.KeyVersions(ctx, key)
+		require.NoError(t, err, "list versions. key: "+key)
+		assert.Len(t, versionStrings, numOfVersions)
+		for _, versionString := range versionStrings {
+			parsedKey, version := parseVersionString(versionString)
+			require.Equal(t, key, parsedKey, "key matches version string")
+			require.False(t, versions[version], "versions all unique")
+			versions[version] = true
+		}
+	}
+}
+
 func TestGcs_Delete(t *testing.T) {
 	ctx := context.Background()
 	count := 10
@@ -313,16 +342,6 @@ func TestGcs_KeysPrefix(t *testing.T) {
 		}
 	}
 	require.Equal(t, count, len(keys))
-}
-
-func TestGcs_KeyVersions(t *testing.T) {
-	//	t.SkipNow("tbd -- failing")
-	//	ctx := context.Background()
-	//	versions := 2
-	//	gcs, cleanup := setup(t,1, 2)
-	_, cleanup := setup(t, 1, 2)
-	defer cleanup()
-
 }
 
 var TotalObjects = 2156
