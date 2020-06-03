@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/jacobsa/fuse"
 )
 
 func registerSIGINTHandlerMount(mountPoint string) {
@@ -20,11 +19,15 @@ func registerSIGINTHandlerMount(mountPoint string) {
 			<-signalChan
 			infoLogger.Println("received SIGINT, attempting to unmount...")
 
-			err := fuse.Unmount(mountPoint)
-			if err != nil {
-				infoLogger.Printf("failed to unmount in response to SIGINT: %v", err)
-			} else {
-				infoLogger.Printf("successfully unmounted in response to SIGINT.")
+			// err := fuse.Unmount(mountPoint)
+			var err error = nil
+			infoLogger.Printf("fuse mount not supported")
+			if false {
+				if err != nil {
+					infoLogger.Printf("failed to unmount in response to SIGINT: %v", err)
+				} else {
+					infoLogger.Printf("successfully unmounted in response to SIGINT.")
+				}
 			}
 		}
 	}()

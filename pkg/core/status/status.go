@@ -65,4 +65,6 @@ var (
 
 	// ErrVersionedStoreRequired indicates that a versioned store is required to operate on versioned objects (e.g. labels)
 	ErrVersionedStoreRequired = errors.New("versioned store is required")
+
+	ErrNoFuse = errors.New("fuse not available or disabled")
 )

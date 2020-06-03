@@ -1,8 +1,10 @@
 package fuse
 
 import (
-	"context"
-	"encoding/binary"
+
+	// "context"
+	// "encoding/binary"
+
 	"fmt"
 	"time"
 	"unsafe"
@@ -10,8 +12,8 @@ import (
 	"go.uber.org/zap"
 
 	iradix "github.com/hashicorp/go-immutable-radix"
-	"github.com/jacobsa/fuse/fuseops"
-	"github.com/jacobsa/fuse/fuseutil"
+	// "github.com/jacobsa/fuse/fuseops"
+	// "github.com/jacobsa/fuse/fuseutil"
 
 	"github.com/oneconcern/datamon/pkg/convert"
 	"github.com/oneconcern/datamon/pkg/core"
@@ -19,7 +21,7 @@ import (
 )
 
 type fsCommon struct {
-	fuseutil.NotImplementedFileSystem
+	// fuseutil.NotImplementedFileSystem
 
 	// Backing bundle for this FS.
 	bundle *core.Bundle
@@ -35,6 +37,7 @@ type fsCommon struct {
 	m *M
 }
 
+/*
 func (fs *fsCommon) StatFS(
 	ctx context.Context,
 	op *fuseops.StatFSOp) (err error) {
@@ -57,6 +60,7 @@ func (fs *fsCommon) ListXattr(
 	// datamon mount ignores extended attributes
 	return nil
 }
+*/
 
 func statFS() (err error) {
 	// TODO: Find the free space on the device and set the attributes accordingly.
@@ -67,6 +71,7 @@ func statFS() (err error) {
 func (fs *fsCommon) opStart(op interface{}) time.Time {
 	logger := fs.l.With(zap.String("Request", fmt.Sprintf("%T", op)))
 	switch t := op.(type) {
+		/*
 	case *fuseops.StatFSOp:
 		logger.Debug("Start", zap.Uint64("inodes", t.Inodes), zap.Uint64("blocks", t.Blocks))
 	case *fuseops.ReadFileOp:
@@ -100,8 +105,10 @@ func (fs *fsCommon) opStart(op interface{}) time.Time {
 		logger.Debug("Start", zap.Uint64("id", uint64(t.Parent)), zap.String("name", t.Name))
 	case *fuseops.UnlinkOp:
 		logger.Debug("Start", zap.Uint64("id", uint64(t.Parent)), zap.String("name", t.Name))
+    */
 	default:
 		logger.Debug("Start", zap.Any("op", op))
+		logger.Debug("", zap.Any("%T", t))
 	}
 	return time.Now()
 }
@@ -110,6 +117,7 @@ func (fs *fsCommon) opEnd(t0 time.Time, op interface{}, err error) {
 	opName := fmt.Sprintf("%T", op)
 	logger := fs.l.With(zap.String("Request", opName))
 	switch t := op.(type) {
+		/*
 	case *fuseops.StatFSOp:
 		logger.Debug("End", zap.Uint64("inodes", t.Inodes), zap.Uint64("blocks", t.Blocks), zap.Error(err))
 	case *fuseops.ReadFileOp:
@@ -146,6 +154,9 @@ func (fs *fsCommon) opEnd(t0 time.Time, op interface{}, err error) {
 		logger.Debug("End", zap.Uint64("id", uint64(t.Parent)), zap.String("name", t.Name), zap.Error(err))
 	case *fuseops.UnlinkOp:
 		logger.Debug("End", zap.Uint64("id", uint64(t.Parent)), zap.String("name", t.Name), zap.Error(err))
+    */
+	default:
+		logger.Debug("", zap.Any("%T", t))
 	}
 	if fs.MetricsEnabled() {
 		fs.m.Usage.UsedAll(t0, opName)(err)
@@ -153,16 +164,15 @@ func (fs *fsCommon) opEnd(t0 time.Time, op interface{}, err error) {
 	logger.Debug("End", zap.Any("op", op), zap.Error(err))
 }
 
-func formLookupKey(id fuseops.InodeID, childName string) []byte {
-	i := formKey(id)
+func formLookupKey(childName string) []byte {
+	i := formKey()
 	c := convert.UnsafeStringToBytes(childName)
 	return append(i, c...)
 }
 
 var intSize = unsafe.Sizeof(uint64(0))
 
-func formKey(id fuseops.InodeID) []byte {
+func formKey() []byte {
 	b := make([]byte, intSize)
-	binary.BigEndian.PutUint64(b, uint64(id))
 	return b
 }

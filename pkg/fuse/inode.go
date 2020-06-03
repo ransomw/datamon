@@ -4,31 +4,32 @@ import (
 	"os"
 	"sync"
 
-	"github.com/jacobsa/fuse/fuseops"
+	// "github.com/jacobsa/fuse/fuseops"
 )
 
 type iNodeGenerator struct {
 	lock         sync.Mutex
-	highestInode fuseops.InodeID
+	highestInode myINodeID
 	// TODO: Replace with something more memory and cpu efficient
-	freeInodes []fuseops.InodeID
+	freeInodes []myINodeID
 }
 
 type lookupEntry struct {
-	iNode fuseops.InodeID
+	iNode myINodeID
 	mode  os.FileMode
 }
 
 type nodeEntry struct {
 	lock              sync.Mutex // TODO: Replace with key based locking.
 	refCount          int
-	attr              fuseops.InodeAttributes
+	// attr              fuseops.InodeAttributes
+	attr              []interface{}
 	pathToBackingFile string // empty for directory
 }
 
-func (g *iNodeGenerator) allocINode() fuseops.InodeID {
+func (g *iNodeGenerator) allocINode() myINodeID {
 	g.lock.Lock()
-	var n fuseops.InodeID
+	var n myINodeID
 	if len(g.freeInodes) == 0 {
 		g.highestInode++
 		n = g.highestInode
@@ -43,7 +44,7 @@ func (g *iNodeGenerator) allocINode() fuseops.InodeID {
 	return n
 }
 
-func (g *iNodeGenerator) freeINode(iNode fuseops.InodeID) {
+func (g *iNodeGenerator) freeINode(iNode myINodeID) {
 	i := iNode
 	g.lock.Lock()
 	if g.highestInode == i {

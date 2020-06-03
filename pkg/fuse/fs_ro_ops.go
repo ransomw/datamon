@@ -2,7 +2,7 @@ package fuse
 
 import (
 	"context"
-	"os"
+	// "os"
 	"path"
 	"time"
 
@@ -17,12 +17,24 @@ import (
 
 	"github.com/oneconcern/datamon/pkg/model"
 
-	jfuse "github.com/jacobsa/fuse"
-	"github.com/jacobsa/fuse/fuseops"
-	"github.com/jacobsa/fuse/fuseutil"
+	// jfuse "github.com/jacobsa/fuse"
+	// "github.com/jacobsa/fuse/fuseops"
+	// "github.com/jacobsa/fuse/fuseutil"
 )
 
-var _ fuseutil.FileSystem = &readOnlyFsInternal{}
+// var _ fuseutil.FileSystem = &readOnlyFsInternal{}
+
+var (
+	myENOENT = errors.New("my fuse replacement NO ENTry error")
+)
+
+type myINodeID uint64
+
+const (
+	myRootInodeID = 2
+)
+
+type myDirent struct{}
 
 type readOnlyFsInternal struct {
 	fsCommon
@@ -37,7 +49,8 @@ type readOnlyFsInternal struct {
 	// List of children for a given iNode. Maps inode id to list of children. This stitches the fuse FS together.
 	// NOTE: since populateFS is not parallel and is computed before the FS is available,
 	// this map does not need being protected from concurrent access.
-	readDirMap map[fuseops.InodeID][]fuseutil.Dirent
+	// readDirMap map[fuseops.InodeID][]fuseutil.Dirent
+	readDirMap map[myINodeID][]myDirent
 
 	// readonly
 	isReadOnly bool
@@ -58,7 +71,7 @@ func defaultReadOnlyFS(bundle *core.Bundle) *readOnlyFsInternal {
 			lookupTree: iradix.New(),
 			l:          dlogger.MustGetLogger("info"),
 		},
-		readDirMap:   make(map[fuseops.InodeID][]fuseutil.Dirent),
+		readDirMap:   make(map[myINodeID][]myDirent),
 		fsEntryStore: iradix.New(),
 		fsDirStore:   iradix.New(),
 	}
@@ -69,92 +82,87 @@ func asFsEntry(p interface{}) *FsEntry {
 	return &fe
 }
 
-func (fs *readOnlyFsInternal) LookUpInode(ctx context.Context, op *fuseops.LookUpInodeOp) (err error) {
+func (fs *readOnlyFsInternal) LookUpInode(ctx context.Context,
+	op interface{}) (err error) {
+
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
 
-	lookupKey := formLookupKey(op.Parent, op.Name)
-	val, found := fs.lookupTree.Get(lookupKey)
-
-	if found {
-		childEntry := asFsEntry(val)
-		op.Entry.Attributes = childEntry.attributes
-		if fs.isReadOnly {
-			op.Entry.AttributesExpiration = time.Now().Add(cacheYearLong)
-			op.Entry.EntryExpiration = op.Entry.AttributesExpiration
-		}
-		op.Entry.Child = childEntry.iNode
-		op.Entry.Generation = 1
-
-	} else {
-		err = jfuse.ENOENT
-		return
-	}
-	return nil
+	return status.ErrNoFuse
 }
 
 func (fs *readOnlyFsInternal) GetInodeAttributes(
 	ctx context.Context,
-	op *fuseops.GetInodeAttributesOp) (err error) {
+	op interface{}) (err error) {
+
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
 
-	key := formKey(op.Inode)
-	e, found := fs.fsEntryStore.Get(key)
-	if !found {
-		err = jfuse.ENOENT
-		return
-	}
-	fe := asFsEntry(e)
-	op.AttributesExpiration = time.Now().Add(cacheYearLong)
-	op.Attributes = fe.attributes
-	return nil
+	return status.ErrNoFuse
+
+	// key := formKey()
+	// e, found := fs.fsEntryStore.Get(key)
+	// if !found {
+	// 	err = myENOENT
+	// 	return
+	// }
+	// fe := asFsEntry(e)
+	// op.AttributesExpiration = time.Now().Add(cacheYearLong)
+	// op.Attributes = fe.attributes
+	// return nil
 }
 
 func (fs *readOnlyFsInternal) ForgetInode(
 	ctx context.Context,
-	op *fuseops.ForgetInodeOp) (err error) {
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
-	return
+	return status.ErrNoFuse
 }
 
-func (fs *readOnlyFsInternal) OpenDir(ctx context.Context, op *fuseops.OpenDirOp) (err error) {
+func (fs *readOnlyFsInternal) OpenDir(ctx context.Context,
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
-	fs.opEnd(t0, op, err)
+	defer fs.opEnd(t0, op, err)
 
-	p, found := fs.fsEntryStore.Get(formKey(op.Inode))
+	return status.ErrNoFuse
+
+	p, found := fs.fsEntryStore.Get(formKey())
 	if !found {
-		err = jfuse.ENOENT
+		err = myENOENT
 		return
 	}
 	fe := asFsEntry(p)
 	if !fe.isDir() {
-		err = jfuse.ENOENT
+		err = myENOENT
 		return
 	}
 	return nil
 }
 
-func (fs *readOnlyFsInternal) ReadDir(ctx context.Context, op *fuseops.ReadDirOp) (err error) {
+func (fs *readOnlyFsInternal) ReadDir(ctx context.Context,
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
 
-	offset := int(op.Offset)
-	iNode := op.Inode
+	return status.ErrNoFuse
 
-	children, found := fs.readDirMap[iNode]
+	// offset := int(op.Offset)
+	// iNode := op.Inode
 
-	if !found {
-		err = jfuse.ENOENT
-		return
-	}
+	// children, found := fs.readDirMap[iNode]
 
-	if offset > len(children) {
-		err = jfuse.ENOENT
-		return
-	}
+	// if !found {
+	// 	err = myENOENT
+	// 	return
+	// }
 
+	// if offset > len(children) {
+	// 	err = myENOENT
+	// 	return
+	// }
+
+	/*
 	for i := offset; i < len(children); i++ {
 		n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], children[i])
 		if n == 0 {
@@ -162,28 +170,31 @@ func (fs *readOnlyFsInternal) ReadDir(ctx context.Context, op *fuseops.ReadDirOp
 		}
 		op.BytesRead += n
 	}
-	return nil
+  */
+
+	// return nil
 }
 
 func (fs *readOnlyFsInternal) ReleaseDirHandle(
 	ctx context.Context,
-	op *fuseops.ReleaseDirHandleOp) (err error) {
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
-	return
+	return status.ErrNoFuse
 }
 
 func (fs *readOnlyFsInternal) OpenFile(
 	ctx context.Context,
-	op *fuseops.OpenFileOp) (err error) {
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
-	return
+	return status.ErrNoFuse
 }
 
 func (fs *readOnlyFsInternal) ReadFile(
 	ctx context.Context,
-	op *fuseops.ReadFileOp) (err error) {
+	op interface{}) (err error) {
+
 	var n int
 
 	t0 := fs.opStart(op)
@@ -196,38 +207,42 @@ func (fs *readOnlyFsInternal) ReadFile(
 		}
 	}()
 
+
+	return status.ErrNoFuse
+
 	// If file has not been mutated.
-	p, found := fs.fsEntryStore.Get(formKey(op.Inode))
-	if !found {
-		err = jfuse.ENOENT
-		return
-	}
-	fe := asFsEntry(p)
-	fs.l.Debug("reading file", zap.String("file", fe.fullPath), zap.Uint64("inode", uint64(fe.iNode)))
+	// p, found := fs.fsEntryStore.Get(formKey())
+	// if !found {
+	// 	err = myENOENT
+	// 	return
+	// }
+	// fe := asFsEntry(p)
+	// fs.l.Debug("reading file", zap.String("file", fe.fullPath), zap.Uint64("inode", uint64(fe.iNode)))
 
 	// now consumes the file from the bundle
-	n, err = fs.readAtBundle(fe, op.Dst, op.Offset)
-	op.BytesRead = n
-	return err
+	// n, err = fs.readAtBundle(fe, op.Dst, op.Offset)
+	// op.BytesRead = n
+	// return err
 }
 
 func (fs *readOnlyFsInternal) ReleaseFileHandle(
 	ctx context.Context,
-	op *fuseops.ReleaseFileHandleOp) (err error) {
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
-	return
+	return status.ErrNoFuse
 }
 
 func (fs *readOnlyFsInternal) FlushFile(
 	ctx context.Context,
-	op *fuseops.FlushFileOp) (err error) {
+	op interface{}) (err error) {
 	// noop
-	return
+	return status.ErrNoFuse
 }
 
 type fsNodeToAdd struct {
-	parentINode fuseops.InodeID
+	// parentINode fuseops.InodeID
+	parentINode myINodeID
 	FsEntry     FsEntry
 }
 
@@ -239,8 +254,10 @@ type FsEntry struct {
 	// for a bundle is static and the list of files is frozen, multiple mounts of the same
 	// bundle will preserve a fixed iNode for a file provided the order of reading the files
 	// remains fixed.
-	iNode      fuseops.InodeID         // Unique ID for Fuse
-	attributes fuseops.InodeAttributes // Fuse Attributes
+	// iNode      fuseops.InodeID         // Unique ID for Fuse
+	iNode      myINodeID         // Unique ID for Fuse
+	// attributes fuseops.InodeAttributes // Fuse Attributes
+	attributes []interface{}
 	fullPath   string
 }
 
@@ -248,26 +265,18 @@ func (f FsEntry) isDir() bool {
 	return f.hash == ""
 }
 
-func newFsEntry(bundleEntry *model.BundleEntry, t time.Time, id fuseops.InodeID, linkCount uint32) *FsEntry {
-	var mode os.FileMode = fileReadOnlyMode
-	if bundleEntry.Hash == "" {
-		mode = dirReadOnlyMode
-	}
+func newFsEntry(bundleEntry *model.BundleEntry, t time.Time,
+	id myINodeID,
+	linkCount uint32) *FsEntry {
+	// var mode os.FileMode = fileReadOnlyMode
+	// if bundleEntry.Hash == "" {
+	// 	mode = dirReadOnlyMode
+	// }
 	return &FsEntry{
 		fullPath: bundleEntry.NameWithPath,
 		hash:     bundleEntry.Hash,
 		iNode:    id,
-		attributes: fuseops.InodeAttributes{
-			Size:   bundleEntry.Size,
-			Nlink:  linkCount,
-			Mode:   mode,
-			Atime:  t,
-			Mtime:  t,
-			Ctime:  t,
-			Crtime: t,
-			Uid:    1020, // TODO: Set to uid gid usable by container..
-			Gid:    2000, // TODO: Same as above
-		},
+		attributes: make([]interface{}, 0),
 	}
 }
 
@@ -306,12 +315,13 @@ type populate struct {
 	bundle      *core.Bundle
 	txns        *populateFSTxns
 	nodesToAdd  []fsNodeToAdd
-	iNode       *fuseops.InodeID
+	// iNode       *fuseops.InodeID
+	iNode       *myINodeID
 	bundleEntry model.BundleEntry
 }
 
-func (p *populate) WithINode(i *fuseops.InodeID) *populate {
-	p.iNode = i
+func (p *populate) WithINode(i myINodeID) *populate {
+	// p.iNode = i
 	return p
 }
 
@@ -323,7 +333,7 @@ func (p *populate) WithEntry(entry model.BundleEntry) *populate {
 /* unwound recursion to build a list of entries terminating at the first extant parent */
 // consider winding up recursion for clarity.(?).
 func (p *populate) WithNodesFromEntry() *populate {
-	next := func(i *fuseops.InodeID) fuseops.InodeID {
+	next := func(i *myINodeID) myINodeID {
 		*i++
 		return *i
 	}
@@ -348,7 +358,7 @@ func (p *populate) WithNodesFromEntry() *populate {
 		// entry under root
 		if parentPath == "" || parentPath == "." || parentPath == "/" {
 			p.nodesToAdd = append(p.nodesToAdd, fsNodeToAdd{
-				parentINode: fuseops.RootInodeID,
+				parentINode: myRootInodeID,
 				FsEntry:     *FsEntry,
 			})
 			if len(p.nodesToAdd) > 1 {
@@ -402,7 +412,7 @@ func (p *populate) WithNodesFromEntry() *populate {
 // discriminating between leaf nodes and directory nodes
 func populateFSAddNodes(p *populate) (err error) {
 	for _, nodeToAdd := range p.nodesToAdd {
-		if nodeToAdd.FsEntry.attributes.Nlink == dirLinkCount {
+		if false /* nodeToAdd.FsEntry.attributes.Nlink == dirLinkCount */ {
 			err = p.fs.insertDirEntry(
 				p.txns,
 				nodeToAdd.parentINode,
@@ -426,11 +436,12 @@ func populateFSAddNodes(p *populate) (err error) {
 func populateFSAddBundleEntries(p *populate) error {
 	// For a Bundle Entry there might be intermediate directories that need adding.
 	p.nodesToAdd = []fsNodeToAdd{} // TODO(fred): preallocate
-	inode := firstINode            // iNode for fs entries
+	// iNode for fs entries
+	// inode := firstINode
 
 	for _, bundleEntry := range p.fs.bundle.GetBundleEntries() {
 		err := populateFSAddNodes(p.
-			WithINode(&inode).
+			// WithINode(&inode).
 			WithEntry(bundleEntry).
 			WithNodesFromEntry())
 		if err != nil {
@@ -452,12 +463,12 @@ func (fs *readOnlyFsInternal) populateFS(bundle *core.Bundle) (*ReadOnlyFS, erro
 	dirFsEntry := newFsEntry(
 		newBundleEntry(rootPath),
 		bundle.BundleDescriptor.Timestamp,
-		fuseops.RootInodeID,
+		myRootInodeID,
 		dirLinkCount,
 	)
 
 	// Root points to itself
-	if err := fs.insertDirEntry(txns, fuseops.RootInodeID, *dirFsEntry); err != nil {
+	if err := fs.insertDirEntry(txns, myRootInodeID, *dirFsEntry); err != nil {
 		return nil, err
 	}
 
@@ -476,13 +487,13 @@ func (fs *readOnlyFsInternal) populateFS(bundle *core.Bundle) (*ReadOnlyFS, erro
 
 	return &ReadOnlyFS{
 		fsInternal: fs,
-		server:     fuseutil.NewFileSystemServer(fs),
+		// server:     fuseutil.NewFileSystemServer(fs),
 	}, nil
 }
 
 func (fs *readOnlyFsInternal) insertDirEntry(
 	txns *populateFSTxns,
-	parentInode fuseops.InodeID,
+	parentInode myINodeID,
 	dirFsEntry FsEntry) error {
 
 	pth := dirFsEntry.fullPath
@@ -495,15 +506,15 @@ func (fs *readOnlyFsInternal) insertDirEntry(
 			WrapWithLog(logger, errors.New("dirStore updates are not expected: /"+pth))
 	}
 
-	key := formKey(dirFsEntry.iNode)
+	key := formKey()
 
 	if _, update := txns.fsEntryStore.Insert(key, dirFsEntry); update {
 		return status.ErrUnexpectedUpdate.
 			WrapWithLog(logger, errors.New("fsEntryStore updates are not expected: /"+pth))
 	}
 
-	if dirFsEntry.iNode != fuseops.RootInodeID {
-		key = formLookupKey(parentInode, path.Base(pth))
+	if dirFsEntry.iNode != myRootInodeID {
+		key = formLookupKey(path.Base(pth))
 
 		if _, update := txns.lookupTree.Insert(key, dirFsEntry); update {
 			return status.ErrUnexpectedUpdate.
@@ -511,12 +522,7 @@ func (fs *readOnlyFsInternal) insertDirEntry(
 		}
 
 		childEntries := fs.readDirMap[parentInode]
-		childEntries = append(childEntries, fuseutil.Dirent{
-			Offset: fuseops.DirOffset(len(childEntries) + 1),
-			Inode:  dirFsEntry.iNode,
-			Name:   path.Base(pth),
-			Type:   fuseutil.DT_Directory,
-		})
+		childEntries = append(childEntries, myDirent{})
 		fs.readDirMap[parentInode] = childEntries
 	}
 
@@ -525,7 +531,7 @@ func (fs *readOnlyFsInternal) insertDirEntry(
 
 func (fs *readOnlyFsInternal) insertFsEntry(
 	txns *populateFSTxns,
-	parentInode fuseops.InodeID,
+	parentInode myINodeID,
 	fsEntry FsEntry) error {
 	pth := fsEntry.fullPath
 	base := path.Base(pth)
@@ -536,25 +542,20 @@ func (fs *readOnlyFsInternal) insertFsEntry(
 		zap.Uint64("childInode", uint64(fsEntry.iNode)),
 		zap.String("base", base))
 
-	key := formKey(fsEntry.iNode)
+	key := formKey()
 	if _, update := txns.fsEntryStore.Insert(key, fsEntry); update {
 		return status.ErrUnexpectedUpdate.
 			WrapWithLog(logger, errors.New("fsEntryStore updates are not expected: /"+pth))
 	}
 
-	key = formLookupKey(parentInode, base)
+	key = formLookupKey(base)
 	if _, update := txns.lookupTree.Insert(key, fsEntry); update {
 		return status.ErrUnexpectedUpdate.
 			WrapWithLog(logger, errors.New("fsEntryStore updates are not expected: /"+pth))
 	}
 
 	childEntries := fs.readDirMap[parentInode]
-	childEntries = append(childEntries, fuseutil.Dirent{
-		Offset: fuseops.DirOffset(len(childEntries) + 1),
-		Inode:  fsEntry.iNode,
-		Name:   base,
-		Type:   fuseutil.DT_File,
-	})
+	childEntries = append(childEntries, myDirent{})
 	fs.readDirMap[parentInode] = childEntries
 
 	return nil

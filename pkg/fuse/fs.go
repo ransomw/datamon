@@ -7,16 +7,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jacobsa/fuse/fuseops"
+	// "github.com/jacobsa/fuse/fuseops"
 	"github.com/oneconcern/datamon/pkg/cafs"
 	"github.com/oneconcern/datamon/pkg/core"
 	"github.com/oneconcern/datamon/pkg/errors"
+	"github.com/oneconcern/datamon/pkg/core/status"
 
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	// "go.uber.org/zap/zapcore"
 
-	jfuse "github.com/jacobsa/fuse"
-	"github.com/jacobsa/fuse/fuseutil"
+	// jfuse "github.com/jacobsa/fuse"
+	// "github.com/jacobsa/fuse/fuseutil"
 )
 
 const (
@@ -25,7 +26,8 @@ const (
 	dirLinkCount     uint32          = 2
 	fileLinkCount    uint32          = 1
 	rootPath                         = "/"
-	firstINode       fuseops.InodeID = 1023
+	// firstINode       fuseops.InodeID = 1023
+	firstINode = 1
 	dirDefaultMode                   = 0777 | os.ModeDir
 	fileDefaultMode                  = 0666
 	dirReadOnlyMode                  = 0555 | os.ModeDir
@@ -46,16 +48,16 @@ var _ MountableFS = &MutableFS{}
 
 // ReadOnlyFS is the virtual read-only filesystem created on top of a bundle.
 type ReadOnlyFS struct {
-	mfs        *jfuse.MountedFileSystem // The mounted filesystem
+	// mfs        *jfuse.MountedFileSystem // The mounted filesystem
 	fsInternal *readOnlyFsInternal      // The core of the filesystem
-	server     jfuse.Server             // Fuse server
+	// server     jfuse.Server             // Fuse server
 }
 
 // MutableFS is the virtual mutable filesystem created on top of a bundle.
 type MutableFS struct {
-	mfs        *jfuse.MountedFileSystem // The mounted filesystem
+	// mfs        *jfuse.MountedFileSystem // The mounted filesystem
 	fsInternal *fsMutable               // The core of the filesystem
-	server     jfuse.Server             // Fuse server
+	// server     jfuse.Server             // Fuse server
 }
 
 func checkBundle(bundle *core.Bundle) error {
@@ -173,9 +175,9 @@ func NewMutableFS(bundle *core.Bundle, opts ...Option) (*MutableFS, error) {
 		return nil, err
 	}
 	return &MutableFS{
-		mfs:        nil,
+		// mfs:        nil,
 		fsInternal: fs,
-		server:     fuseutil.NewFileSystemServer(fs),
+		// server:     fuseutil.NewFileSystemServer(fs),
 	}, nil
 }
 
@@ -188,7 +190,10 @@ func (dfs *ReadOnlyFS) Mount(path string, opts ...MountOption) error {
 	return dfs.MountReadOnly(path, opts...)
 }
 
-func defaultMountConfig(bundle *core.Bundle, readOnly bool, subType string) *jfuse.MountConfig {
+func defaultMountConfig(bundle *core.Bundle, readOnly bool, subType string) interface{} {
+	/* *jfuse.MountConfig  */
+	return &struct{}{}
+	/*
 	return &jfuse.MountConfig{
 		Subtype:    subType, // mount appears as "fuse.{subType}"
 		ReadOnly:   readOnly,
@@ -199,7 +204,7 @@ func defaultMountConfig(bundle *core.Bundle, readOnly bool, subType string) *jfu
 		// options := make(map[string]string)
 		// options["allow_other"] = ""
 	}
-
+  */
 }
 
 // MountReadOnly a ReadOnlyFS
@@ -214,31 +219,37 @@ func (dfs *ReadOnlyFS) MountReadOnly(path string, opts ...MountOption) error {
 		bapply(mountCfg)
 	}
 
-	el, _ := zap.NewStdLogAt(dfs.fsInternal.l.
-		With(zap.String("fuse", "read-only mount"), zap.String("mountpoint", path)), zapcore.ErrorLevel)
-	dl, _ := zap.NewStdLogAt(dfs.fsInternal.l.
-		With(zap.String("fuse-debug", "read-only mount"), zap.String("mountpoint", path)), zapcore.DebugLevel)
-	mountCfg.ErrorLogger = el
-	mountCfg.DebugLogger = dl
+	// el, _ := zap.NewStdLogAt(dfs.fsInternal.l.
+	// 	With(zap.String("fuse", "read-only mount"), zap.String("mountpoint", path)), zapcore.ErrorLevel)
+	// dl, _ := zap.NewStdLogAt(dfs.fsInternal.l.
+	// 	With(zap.String("fuse-debug", "read-only mount"), zap.String("mountpoint", path)), zapcore.DebugLevel)
+	// mountCfg.ErrorLogger = el
+	// mountCfg.DebugLogger = dl
 
+	return status.ErrNoFuse
+
+	/*
 	dfs.mfs, err = jfuse.Mount(path, dfs.server, mountCfg)
 	if err == nil {
 		dfs.fsInternal.l.Info("mounting", zap.String("mountpoint", path))
 	}
 	return err
+  */
 }
 
 // Unmount a ReadOnlyFS
 func (dfs *ReadOnlyFS) Unmount(path string) error {
 	dfs.fsInternal.l.Info("unmounting", zap.String("mountpoint", path))
-	return jfuse.Unmount(path)
+	return status.ErrNoFuse
+	// return jfuse.Unmount(path)
 }
 
 // JoinMount blocks until a mounted file system has been unmounted.
 // It does not return successfully until all ops read from the connection have been responded to
 // (i.e. the file system server has finished processing all in-flight ops).
 func (dfs *ReadOnlyFS) JoinMount(ctx context.Context) error {
-	return dfs.mfs.Join(ctx)
+	return status.ErrNoFuse
+	// return dfs.mfs.Join(ctx)
 }
 
 // Mount a MutableFS as mutable (read-write)
@@ -257,18 +268,21 @@ func (dfs *MutableFS) MountMutable(path string, opts ...MountOption) error {
 		bapply(mountCfg)
 	}
 
-	el, _ := zap.NewStdLogAt(dfs.fsInternal.l.
-		With(zap.String("fuse", "mutable mount"), zap.String("mountpoint", path)), zapcore.ErrorLevel)
-	dl, _ := zap.NewStdLogAt(dfs.fsInternal.l.
-		With(zap.String("fuse-debug", "mutable mount"), zap.String("mountpoint", path)), zapcore.DebugLevel)
-	mountCfg.ErrorLogger = el
-	mountCfg.DebugLogger = dl
+	// el, _ := zap.NewStdLogAt(dfs.fsInternal.l.
+	// 	With(zap.String("fuse", "mutable mount"), zap.String("mountpoint", path)), zapcore.ErrorLevel)
+	// dl, _ := zap.NewStdLogAt(dfs.fsInternal.l.
+	// 	With(zap.String("fuse-debug", "mutable mount"), zap.String("mountpoint", path)), zapcore.DebugLevel)
+	// mountCfg.ErrorLogger = el
+	// mountCfg.DebugLogger = dl
 
-	dfs.mfs, err = jfuse.Mount(path, dfs.server, mountCfg)
-	if err == nil {
-		dfs.fsInternal.l.Info("mounting", zap.String("mountpoint", path))
-	}
-	return err
+	return status.ErrNoFuse
+
+	// dfs.mfs, err = jfuse.Mount(path, dfs.server, mountCfg)
+	// if err == nil {
+	// 	dfs.fsInternal.l.Info("mounting", zap.String("mountpoint", path))
+	// }
+	// return err
+
 }
 
 // Unmount a MutableFS
@@ -278,13 +292,18 @@ func (dfs *MutableFS) Unmount(path string) error {
 	//if err != nil {
 	// dump the metadata to the local FS to manually recover.
 	//}
-	dfs.fsInternal.l.Info("unmounting", zap.String("mountpoint", path))
-	return jfuse.Unmount(path)
+
+	return status.ErrNoFuse
+
+	// dfs.fsInternal.l.Info("unmounting", zap.String("mountpoint", path))
+	// return jfuse.Unmount(path)
+
 }
 
 // JoinMount blocks until a mounted file system has been unmounted.
 // It does not return successfully until all ops read from the connection have been responded to
 // (i.e. the file system server has finished processing all in-flight ops).
 func (dfs *MutableFS) JoinMount(ctx context.Context) error {
-	return dfs.mfs.Join(ctx)
+	return status.ErrNoFuse
+	// return dfs.mfs.Join(ctx)
 }

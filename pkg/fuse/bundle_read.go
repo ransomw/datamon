@@ -3,8 +3,9 @@ package fuse
 import (
 	"context"
 
-	"github.com/jacobsa/fuse"
+	// "github.com/jacobsa/fuse"
 	"github.com/oneconcern/datamon/pkg/cafs"
+	"github.com/oneconcern/datamon/pkg/errors"
 	"github.com/oneconcern/datamon/pkg/fuse/status"
 	"go.uber.org/zap"
 )
@@ -12,6 +13,10 @@ import (
 func errNotEOF(err error) bool {
 	return err != nil && err.Error() != "EOF"
 }
+
+var (
+	myEIO = errors.New("my fuse replacement IO error")
+)
 
 // readAtBundle reads some bundle data with an optional offset
 func (fs *readOnlyFsInternal) readAtBundle(file *FsEntry, destination []byte, offset int64) (int, error) {
@@ -28,13 +33,13 @@ func (fs *readOnlyFsInternal) readAtBundle(file *FsEntry, destination []byte, of
 		reader, err := fs.bundle.ConsumableStore.GetAt(context.Background(), file.fullPath)
 		if err != nil {
 			logger.Error("error in unstreamed GetAt", zap.String("hash", file.hash), zap.Error(err))
-			return 0, fuse.EIO
+			return 0, myEIO
 		}
 
 		n, err := reader.ReadAt(destination, offset)
 		if errNotEOF(err) {
 			logger.Error("error in unstreamed readAt", zap.String("hash", file.hash), zap.Error(err))
-			return n, fuse.EIO
+			return n, myEIO
 		}
 
 		logger.Debug("unstreamed filed ReadAt", zap.Int("bytes", n))
@@ -58,7 +63,7 @@ func (fs *readOnlyFsInternal) readAtBundle(file *FsEntry, destination []byte, of
 	n, err := reader.ReadAt(destination, offset)
 	if errNotEOF(err) {
 		logger.Error("error in stream ReadAt", zap.String("hash", file.hash), zap.Error(err))
-		return n, fuse.EIO
+		return n, myEIO
 	}
 	logger.Debug("filed ReadAt", zap.Int("bytes", n))
 	return n, nil

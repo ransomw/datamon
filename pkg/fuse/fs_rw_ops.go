@@ -3,7 +3,7 @@ package fuse
 import (
 	"context"
 	"fmt"
-	"math"
+	// "math"
 	"os"
 	"sync"
 	"time"
@@ -13,18 +13,33 @@ import (
 	iradix "github.com/hashicorp/go-immutable-radix"
 	"github.com/spf13/afero"
 
-	"github.com/jacobsa/fuse/fuseutil"
+	// "github.com/jacobsa/fuse/fuseutil"
 
-	jfuse "github.com/jacobsa/fuse"
-	"github.com/jacobsa/fuse/fuseops"
+	// jfuse "github.com/jacobsa/fuse"
+	// "github.com/jacobsa/fuse/fuseops"
 
 	"github.com/oneconcern/datamon/pkg/cafs"
 	"github.com/oneconcern/datamon/pkg/core"
+	"github.com/oneconcern/datamon/pkg/core/status"
 	"github.com/oneconcern/datamon/pkg/dlogger"
+	"github.com/oneconcern/datamon/pkg/errors"
 	"github.com/oneconcern/datamon/pkg/model"
 )
 
-var _ fuseutil.FileSystem = &fsMutable{}
+// var _ fuseutil.FileSystem = &fsMutable{}
+
+var (
+	myENOTEMPTY = errors.New("my fuse replacement Not Empty error")
+	myENOSYS = errors.New("my fuse replacement NOSYS error")
+	myEINVAL = errors.New("my fuse replacement INVAL error")
+	myENOTDIR = errors.New("my fuse replacement NOTDIR error")
+	myEEXIST = errors.New("my fuse replacement EXIST error")
+
+	// myEIO = errors.New("my fuse replacement IO error")
+	// myENOENT = errors.New("my fuse replacement NO ENTry error")
+)
+
+type myDirentType string
 
 type fsMutable struct {
 	fsCommon
@@ -34,10 +49,10 @@ type fsMutable struct {
 
 	// List of children for a given iNode. Maps inode id to list of children. This stitches the fuse FS together.
 	// TODO: This can be based on radix tree as well. Test performance (with locking simplification) and make the change.
-	readDirMap map[fuseops.InodeID]map[fuseops.InodeID]*fuseutil.Dirent
+	readDirMap map[myINodeID]map[myINodeID]*myDirent
 
 	// Cache of backing files.
-	backingFiles map[fuseops.InodeID]*afero.File
+	backingFiles map[myINodeID]*afero.File
 
 	// TODO: remove one giant lock with more fine grained locking coupled with the readdir move to radix.
 	lock             sync.Mutex
@@ -56,14 +71,14 @@ func defaultMutableFS(bundle *core.Bundle, pathToStaging string) *fsMutable {
 			lookupTree: iradix.New(),
 			l:          dlogger.MustGetLogger("info"),
 		},
-		readDirMap:   make(map[fuseops.InodeID]map[fuseops.InodeID]*fuseutil.Dirent),
+		readDirMap:   make(map[myINodeID]map[myINodeID]*myDirent),
 		iNodeStore:   iradix.New(),
-		backingFiles: make(map[fuseops.InodeID]*afero.File),
+		backingFiles: make(map[myINodeID]*afero.File),
 		lock:         sync.Mutex{},
 		iNodeGenerator: iNodeGenerator{
 			lock:         sync.Mutex{},
 			highestInode: firstINode,
-			freeInodes:   make([]fuseops.InodeID, 0, 65536),
+			freeInodes:   make([]myINodeID, 0, 65536),
 		},
 		localCache: afero.NewBasePathFs(afero.NewOsFs(), pathToStaging),
 	}
@@ -80,8 +95,8 @@ func (fs *fsMutable) atomicGetReferences() (nodeStore *iradix.Tree, lookupTree *
 }
 
 // Lookup against the tree that is referenced. Useful for using an immutable reference of tree.
-func lookup(p fuseops.InodeID, c string, lookupTree *iradix.Tree) (le lookupEntry, found bool, lk []byte) {
-	lk = formLookupKey(p, c)
+func lookup(p myINodeID, c string, lookupTree *iradix.Tree) (le lookupEntry, found bool, lk []byte) {
+	lk = formLookupKey(c)
 	val, found := lookupTree.Get(lk)
 	if found {
 		le = val.(lookupEntry)
@@ -91,41 +106,41 @@ func lookup(p fuseops.InodeID, c string, lookupTree *iradix.Tree) (le lookupEntr
 }
 
 // Lookup an entry and return the right type.
-func (fs *fsMutable) lookup(p fuseops.InodeID, c string) (le lookupEntry, found bool, lk []byte) {
+func (fs *fsMutable) lookup(p myINodeID, c string) (le lookupEntry, found bool, lk []byte) {
 	return lookup(p, c, fs.lookupTree)
 }
 
 // Delete the entry from namespace only. Caller must lock structures.
-func (fs *fsMutable) deleteNSEntry(p fuseops.InodeID, c string) error {
-	pn, found := fs.iNodeStore.Get(formKey(p))
-	if !found {
-		return jfuse.ENOENT
-	}
+func (fs *fsMutable) deleteNSEntry(p myINodeID, c string) error {
+	// pn, found := fs.iNodeStore.Get(formKey())
+	// if !found {
+	// 	return myENOENT
+	// }
 
-	pNode := pn.(*nodeEntry)
+	// pNode := pn.(*nodeEntry)
 
 	cLE, found, lk := fs.lookup(p, c)
 	if !found {
-		return jfuse.ENOENT
+		return myENOENT
 	}
 
-	cn, found := fs.iNodeStore.Get(formKey(cLE.iNode))
-	if !found {
-		fs.l.Error("Did not find node after lookup", zap.Uint64("childInode", uint64(cLE.iNode)), zap.String("name", c))
-		panic("did not find node after lookup")
-	}
+	// cn, found := fs.iNodeStore.Get(formKey())
+	// if !found {
+	// 	fs.l.Error("Did not find node after lookup", zap.Uint64("childInode", uint64(cLE.iNode)), zap.String("name", c))
+	// 	panic("did not find node after lookup")
+	// }
 
-	cNode := cn.(*nodeEntry)
+	// cNode := cn.(*nodeEntry)
 
-	if cNode.attr.Mode.IsDir() {
-		children := fs.readDirMap[cLE.iNode]
-		if len(children) > 0 {
-			return jfuse.ENOTEMPTY
-		}
-		// Delete the child dir
-		delete(fs.readDirMap, cLE.iNode)
-		pNode.attr.Nlink--
-	}
+	// if cNode.attr.Mode.IsDir() {
+	// 	children := fs.readDirMap[cLE.iNode]
+	// 	if len(children) > 0 {
+	// 		return myENOTEMPTY
+	// 	}
+	// 	// Delete the child dir
+	// 	delete(fs.readDirMap, cLE.iNode)
+	// 	pNode.attr.Nlink--
+	// }
 
 	fs.lookupTree, _, _ = fs.lookupTree.Delete(lk)
 	children := fs.readDirMap[p]
@@ -134,189 +149,209 @@ func (fs *fsMutable) deleteNSEntry(p fuseops.InodeID, c string) error {
 	return nil
 }
 
-func (fs *fsMutable) LookUpInode(ctx context.Context, op *fuseops.LookUpInodeOp) (err error) {
+func (fs *fsMutable) LookUpInode(ctx context.Context,
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
 
-	nodeStore, lookupTree := fs.atomicGetReferences()
+	return status.ErrNoFuse
 
-	childEntry, found, _ := lookup(op.Parent, op.Name, lookupTree)
+	// nodeStore, lookupTree := fs.atomicGetReferences()
 
-	if found {
+	// childEntry, found, _ := lookup(op.Parent, op.Name, lookupTree)
 
-		v, _ := nodeStore.Get(formKey(childEntry.iNode))
+	// if found {
 
-		n := v.(*nodeEntry)
-		n.refCount++ // As per LookUpInodeOp spec
+	// 	v, _ := nodeStore.Get(formKey())
 
-		op.Entry.Attributes = n.attr
-		op.Entry.Generation = 1
-		op.Entry.Child = childEntry.iNode
+	// 	n := v.(*nodeEntry)
+	// 	n.refCount++ // As per LookUpInodeOp spec
 
-		// kernel can cache
-		op.Entry.AttributesExpiration = time.Now().Add(cacheYearLong)
-		op.Entry.EntryExpiration = op.Entry.AttributesExpiration
-	} else {
-		return jfuse.ENOENT
-	}
-	return nil
+	// 	op.Entry.Attributes = n.attr
+	// 	op.Entry.Generation = 1
+	// 	op.Entry.Child = childEntry.iNode
+
+	// 	// kernel can cache
+	// 	op.Entry.AttributesExpiration = time.Now().Add(cacheYearLong)
+	// 	op.Entry.EntryExpiration = op.Entry.AttributesExpiration
+	// } else {
+	// 	return myENOENT
+	// }
+	// return nil
 }
 
-func (fs *fsMutable) GetInodeAttributes(ctx context.Context, op *fuseops.GetInodeAttributesOp) (err error) {
+func (fs *fsMutable) GetInodeAttributes(ctx context.Context,
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
 
-	nodeStore, _ := fs.atomicGetReferences()
+	return status.ErrNoFuse
 
-	key := formKey(op.Inode)
+	// nodeStore, _ := fs.atomicGetReferences()
 
-	e, found := nodeStore.Get(key)
-	if !found {
-		err := jfuse.ENOENT
-		return err
-	}
+	// key := formKey()
 
-	n := e.(*nodeEntry)
-	op.AttributesExpiration = time.Now().Add(cacheYearLong)
-	n.lock.Lock()
-	op.Attributes = n.attr
-	n.lock.Unlock()
-	return
+	// e, found := nodeStore.Get(key)
+	// if !found {
+	// 	err := myENOENT
+	// 	return err
+	// }
+
+	// n := e.(*nodeEntry)
+	// op.AttributesExpiration = time.Now().Add(cacheYearLong)
+	// n.lock.Lock()
+	// op.Attributes = n.attr
+	// n.lock.Unlock()
+	// return
 }
 
-func (fs *fsMutable) SetInodeAttributes(ctx context.Context, op *fuseops.SetInodeAttributesOp) (err error) {
+func (fs *fsMutable) SetInodeAttributes(ctx context.Context,
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
 
-	if op.Mode != nil { // File permissions not supported
-		fs.l.Debug("setting permissions mode is not supported", zap.Uint32("mode", uint32(*op.Mode)))
-		return jfuse.ENOSYS
-	}
+	return status.ErrNoFuse
 
-	nodeStore, _ := fs.atomicGetReferences()
+	// if op.Mode != nil { // File permissions not supported
+	// 	fs.l.Debug("setting permissions mode is not supported", zap.Uint32("mode", uint32(*op.Mode)))
+	// 	return myENOSYS
+	// }
+
+	// nodeStore, _ := fs.atomicGetReferences()
 
 	// Get the node.
-	key := formKey(op.Inode)
-	e, found := nodeStore.Get(key)
-	if !found {
-		return jfuse.ENOENT
-	}
+	// key := formKey()
+	// e, found := nodeStore.Get(key)
+	// if !found {
+	// 	return myENOENT
+	// }
 
-	n := e.(*nodeEntry)
+	// n := e.(*nodeEntry)
 
 	// lock the entry
-	n.lock.Lock()
-	defer n.lock.Unlock()
+	// n.lock.Lock()
+	// defer n.lock.Unlock()
 
 	// Set the values
-	if op.Size != nil {
-		// File size can be truncated.
-		file, err := fs.localCache.OpenFile(fmt.Sprint(op.Inode), os.O_WRONLY|os.O_SYNC, fileDefaultMode)
-		if err != nil {
-			return jfuse.EIO
-		}
-		if *op.Size > math.MaxInt64 {
-			fs.l.Error("Received size greater than MaxInt64", zap.Uint64("size", *op.Size), zap.Uint64("inode", uint64(op.Inode)))
-			return jfuse.EINVAL
-		}
-		err = file.Truncate(int64(*op.Size))
-		if err != nil {
-			fs.l.Error("truncate error", zap.Error(err))
-			return jfuse.EIO
-		}
-		n.attr.Size = *op.Size
-	}
+	// if op.Size != nil {
+	// 	// File size can be truncated.
+	// 	file, err := fs.localCache.OpenFile(fmt.Sprint(op.Inode), os.O_WRONLY|os.O_SYNC, fileDefaultMode)
+	// 	if err != nil {
+	// 		return myEIO
+	// 	}
+	// 	if *op.Size > math.MaxInt64 {
+	// 		fs.l.Error("Received size greater than MaxInt64", zap.Uint64("size", *op.Size), zap.Uint64("inode", uint64(op.Inode)))
+	// 		return myEINVAL
+	// 	}
+	// 	err = file.Truncate(int64(*op.Size))
+	// 	if err != nil {
+	// 		fs.l.Error("truncate error", zap.Error(err))
+	// 		return myEIO
+	// 	}
+	// 	n.attr.Size = *op.Size
+	// }
 
-	if op.Atime != nil {
-		n.attr.Atime = *op.Atime
-	}
+	// if op.Atime != nil {
+	// 	n.attr.Atime = *op.Atime
+	// }
 
-	if op.Mtime != nil {
-		n.attr.Mtime = *op.Mtime
-	}
+	// if op.Mtime != nil {
+	// 	n.attr.Mtime = *op.Mtime
+	// }
 
-	op.AttributesExpiration = time.Now().Add(cacheYearLong)
+	// op.AttributesExpiration = time.Now().Add(cacheYearLong)
 
-	// Send new attr back
-	op.Attributes = n.attr
-	return nil
+	// // Send new attr back
+	// op.Attributes = n.attr
+	// return nil
 }
 
 func (fs *fsMutable) ForgetInode(
 	ctx context.Context,
-	op *fuseops.ForgetInodeOp) (err error) {
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
 
-	// Check reference count for iNode and remove from iNodeStore
-	// Get the node.
-	nodeStore, _ := fs.atomicGetReferences()
-	key := formKey(op.Inode)
-	e, found := nodeStore.Get(key)
-	if !found {
-		fs.l.Error("ForgetInode inode not found", zap.Uint64("inode", uint64(op.Inode)))
-		panic(fmt.Sprintf("not found iNode:%d", op.Inode))
-	}
+	return status.ErrNoFuse
 
-	var del bool
-	n := e.(*nodeEntry)
+	// // Check reference count for iNode and remove from iNodeStore
+	// // Get the node.
+	// nodeStore, _ := fs.atomicGetReferences()
+	// key := formKey()
+	// e, found := nodeStore.Get(key)
+	// if !found {
+	// 	fs.l.Error("ForgetInode inode not found", zap.Uint64("inode", uint64(op.Inode)))
+	// 	panic(fmt.Sprintf("not found iNode:%d", op.Inode))
+	// }
 
-	n.lock.Lock()
-	n.refCount--
+	// var del bool
+	// n := e.(*nodeEntry)
 
-	if n.refCount < 0 {
-		panic(fmt.Sprintf("RefCount below zero %d", op.Inode))
-	}
+	// n.lock.Lock()
+	// n.refCount--
 
-	del = shouldDelete(n)
+	// if n.refCount < 0 {
+	// 	panic(fmt.Sprintf("RefCount below zero %d", op.Inode))
+	// }
 
-	//Explicitly release lock.
-	n.lock.Unlock()
+	// del = shouldDelete(n)
 
-	if del {
+	// //Explicitly release lock.
+	// n.lock.Unlock()
 
-		fs.lock.Lock()
-		defer fs.lock.Unlock()
+	// if del {
 
-		e, found := fs.iNodeStore.Get(key)
-		if !found {
-			return
-		}
-		n := e.(*nodeEntry)
-		if shouldDelete(n) {
-			fs.iNodeStore, _, _ = fs.iNodeStore.Delete(key)
-			fs.l.Debug("NodeStore", zap.Int("Size", fs.iNodeStore.Len()))
-		}
-		fs.iNodeGenerator.freeINode(op.Inode)
-	}
-	return nil
+	// 	fs.lock.Lock()
+	// 	defer fs.lock.Unlock()
+
+	// 	e, found := fs.iNodeStore.Get(key)
+	// 	if !found {
+	// 		return
+	// 	}
+	// 	n := e.(*nodeEntry)
+	// 	if shouldDelete(n) {
+	// 		fs.iNodeStore, _, _ = fs.iNodeStore.Delete(key)
+	// 		fs.l.Debug("NodeStore", zap.Int("Size", fs.iNodeStore.Len()))
+	// 	}
+	// 	fs.iNodeGenerator.freeINode(op.Inode)
+	// }
+	// return nil
 }
 
 func (fs *fsMutable) MkDir(
 	ctx context.Context,
-	op *fuseops.MkDirOp) (err error) {
-	fs.l.Info("mkdir", zap.Uint64("id", uint64(op.Parent)), zap.String("name", op.Name))
+	op interface{}) (err error) {
+	fs.l.Info("mkdir",
+		// zap.Uint64("id", uint64(op.Parent)),
+		// zap.String("name", op.Name)
+	)
 
 	fs.lock.Lock()
 	defer fs.lock.Unlock()
 
-	lk := formLookupKey(op.Parent, op.Name)
+	return status.ErrNoFuse
 
-	err = fs.preCreateCheck(op.Parent, lk)
-	if err != nil {
-		fs.lock.Unlock()
-		return
-	}
+	// lk := formLookupKey(op.Name)
 
-	err = fs.createNode(lk, op.Parent, op.Name, &op.Entry, fuseutil.DT_Directory, false)
-	return
+	// err = fs.preCreateCheck(op.Parent, lk)
+	// if err != nil {
+	// 	fs.lock.Unlock()
+	// 	return
+	// }
+
+	// err = fs.createNode(lk, op.Parent, op.Name, &op.Entry,
+	// 	"",
+	// 	false)
+	// return
 }
 
 func (fs *fsMutable) CreateFile(
 	ctx context.Context,
-	op *fuseops.CreateFileOp) (err error) {
+	op interface{}) (err error) {
 
-	fs.l.Info("createFile", zap.Uint64("id", uint64(op.Parent)), zap.String("name", op.Name))
+	fs.l.Info("createFile",
+		// zap.Uint64("id", uint64(op.Parent)), zap.String("name", op.Name)
+	)
 
 	// TODO: Implement a CAFS friendly store. That will chunk file at leaf size and on commit, move the chunks into
 	// blob cache.
@@ -325,182 +360,200 @@ func (fs *fsMutable) CreateFile(
 	fs.lock.Lock()
 	defer fs.lock.Unlock()
 
-	lk := formLookupKey(op.Parent, op.Name)
+	return status.ErrNoFuse
 
-	err = fs.preCreateCheck(op.Parent, lk)
-	if err != nil {
-		return
-	}
+	// lk := formLookupKey(op.Name)
 
-	err = fs.createNode(lk, op.Parent, op.Name, &op.Entry, fuseutil.DT_File, false)
-	return
+	// err = fs.preCreateCheck(op.Parent, lk)
+	// if err != nil {
+	// 	return
+	// }
+
+	// err = fs.createNode(lk, op.Parent, op.Name, &op.Entry,
+	// 	"", false)
+	// return
 }
 
 // From man 2 rename:
 // If newpath exists but the operation fails for some reason, rename() guarantees to leave an instance of newpath in place.
 // oldpath can specify a directory.  In this case, newpath must either not exist, or it must specify an empty directory.
-func (fs *fsMutable) Rename(ctx context.Context, op *fuseops.RenameOp) (err error) {
+func (fs *fsMutable) Rename(ctx context.Context,
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
 
 	fs.lock.Lock()
 	defer fs.lock.Unlock()
 
-	// Find the old child
-	oldChild, found, _ := fs.lookup(op.OldParent, op.OldName)
-	if !found {
-		return jfuse.ENOENT
-	}
-	newChild, found, _ := fs.lookup(op.NewParent, op.NewName)
-	if found {
-		if newChild.mode.IsDir() {
-			return jfuse.ENOSYS
-		}
-		// Delete new child, ignore if not present
-		_ = fs.deleteNSEntry(op.NewParent, op.NewName)
-	}
+	return status.ErrNoFuse
 
-	// Insert iNode into new readDir and lookup and remove from old.
-	rC := fs.readDirMap[op.OldParent][oldChild.iNode]
+	// // Find the old child
+	// oldChild, found, _ := fs.lookup(op.OldParent, op.OldName)
+	// if !found {
+	// 	return myENOENT
+	// }
+	// newChild, found, _ := fs.lookup(op.NewParent, op.NewName)
+	// if found {
+	// 	if newChild.mode.IsDir() {
+	// 		return myENOSYS
+	// 	}
+	// 	// Delete new child, ignore if not present
+	// 	_ = fs.deleteNSEntry(op.NewParent, op.NewName)
+	// }
 
-	newRC := fuseutil.Dirent{
-		Inode: rC.Inode,
-		Name:  op.NewName,
-		Type:  rC.Type,
-	}
+	// // Insert iNode into new readDir and lookup and remove from old.
+	// rC := fs.readDirMap[op.OldParent][oldChild.iNode]
 
-	// Delete from old parent
-	delete(fs.readDirMap[op.OldParent], rC.Inode)
-	var l interface{}
-	fs.lookupTree, l, _ = fs.lookupTree.Delete(formLookupKey(op.OldParent, op.OldName)) // lookupEntry remains the same
+	// newRC := myDirent{
+	// 	Inode: rC.Inode,
+	// 	Name:  op.NewName,
+	// 	Type:  rC.Type,
+	// }
 
-	// Insert into new.
-	fs.insertReadDirEntry(op.NewParent, &newRC)
-	fs.insertLookupEntry(op.NewParent, op.NewName, l.(lookupEntry))
+	// // Delete from old parent
+	// delete(fs.readDirMap[op.OldParent], rC.Inode)
+	// var l interface{}
+	// // lookupEntry remains the same
+	// fs.lookupTree, l, _ = fs.lookupTree.Delete(formLookupKey(op.OldName))
 
-	return nil
+	// // Insert into new.
+	// fs.insertReadDirEntry(op.NewParent, &newRC)
+	// fs.insertLookupEntry(op.NewParent, op.NewName, l.(lookupEntry))
+
+	// return nil
 }
 
 func (fs *fsMutable) RmDir(
 	ctx context.Context,
-	op *fuseops.RmDirOp) (err error) {
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
 
 	fs.lock.Lock()
 	defer fs.lock.Unlock()
 
-	return fs.deleteNSEntry(op.Parent, op.Name)
+	return status.ErrNoFuse
+
+	// return fs.deleteNSEntry(op.Parent, op.Name)
 }
 
 func (fs *fsMutable) Unlink(
 	ctx context.Context,
-	op *fuseops.UnlinkOp) (err error) {
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
 
 	fs.lock.Lock()
 	defer fs.lock.Unlock()
 
+	return status.ErrNoFuse
+
 	// TODO: remove from lookup and readdir
-	return fs.deleteNSEntry(op.Parent, op.Name)
+	// return fs.deleteNSEntry(op.Parent, op.Name)
 }
 
 func (fs *fsMutable) OpenDir(
 	ctx context.Context,
-	op *fuseops.OpenDirOp) (err error) {
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
 
-	return
+	return status.ErrNoFuse
 }
 
 func (fs *fsMutable) ReadDir(
 	ctx context.Context,
-	op *fuseops.ReadDirOp) (err error) {
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
 
-	offset := int(op.Offset)
-	iNode := op.Inode
+	return status.ErrNoFuse
 
-	fs.lock.Lock()
-	defer fs.lock.Unlock()
+	// offset := int(op.Offset)
+	// iNode := op.Inode
 
-	children, found := fs.readDirMap[iNode]
+	// fs.lock.Lock()
+	// defer fs.lock.Unlock()
 
-	if !found {
-		return jfuse.ENOENT
-	}
+	// children, found := fs.readDirMap[iNode]
 
-	if offset > len(children) {
-		return
-	}
+	// if !found {
+	// 	return myENOENT
+	// }
 
-	var i uint64 = 1
-	for _, c := range children {
-		i++
-		if i < uint64(offset) {
-			continue
-		}
-		child := *c
-		child.Offset = fuseops.DirOffset(i) // This is where dirOffset matters..
-		n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], child)
-		if n == 0 {
-			break
-		}
-		op.BytesRead += n
-	}
-	return nil
+	// if offset > len(children) {
+	// 	return
+	// }
+
+	// var i uint64 = 1
+	// /*
+	// for _, c := range children {
+	// 	i++
+	// 	if i < uint64(offset) {
+	// 		continue
+	// 	}
+	// 	child := *c
+	// 	// This is where dirOffset matters..
+	// 	// child.Offset = fuseops.DirOffset(i)
+	// 	n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], child)
+	// 	if n == 0 {
+	// 		break
+	// 	}
+	// 	op.BytesRead += n
+	// }
+	// */
+	// return nil
 }
 
 func (fs *fsMutable) ReleaseDirHandle(
 	ctx context.Context,
-	op *fuseops.ReleaseDirHandleOp) (err error) {
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
-	return
+	return status.ErrNoFuse
 }
 
 func (fs *fsMutable) OpenFile(
 	ctx context.Context,
-	op *fuseops.OpenFileOp) (err error) {
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
-	return
+	return status.ErrNoFuse
 }
 
 func (fs *fsMutable) ReadFile(
 	ctx context.Context,
-	op *fuseops.ReadFileOp) (err error) {
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
 	defer func() {
 		fs.opEnd(t0, op, err)
-		if fs.MetricsEnabled() {
-			fs.m.Volume.Files.Inc("read")
-			fs.m.Volume.Files.Size(int64(op.BytesRead), "read")
-			fs.m.Volume.IO.IORecord(t0, "read")(int64(op.BytesRead), err)
-		}
+		// if fs.MetricsEnabled() {
+		// 	fs.m.Volume.Files.Inc("read")
+		// 	fs.m.Volume.Files.Size(int64(op.BytesRead), "read")
+		// 	fs.m.Volume.IO.IORecord(t0, "read")(int64(op.BytesRead), err)
+		// }
 	}()
 
-	file, err := fs.localCache.OpenFile(getPathToBackingFile(op.Inode), os.O_RDONLY|os.O_SYNC, fileDefaultMode)
-	if err != nil {
-		return jfuse.EIO
-	}
-	fs.lockBackingFiles.Lock()
-	defer fs.lockBackingFiles.Unlock()
+	return status.ErrNoFuse
 
-	fs.backingFiles[op.Inode] = &file
-	op.BytesRead, err = file.ReadAt(op.Dst, op.Offset)
-	if err != nil {
-		return jfuse.EIO
-	}
-	return
+	// file, err := fs.localCache.OpenFile(getPathToBackingFile(op.Inode), os.O_RDONLY|os.O_SYNC, fileDefaultMode)
+	// if err != nil {
+	// 	return myEIO
+	// }
+	// fs.lockBackingFiles.Lock()
+	// defer fs.lockBackingFiles.Unlock()
+
+	// fs.backingFiles[op.Inode] = &file
+	// op.BytesRead, err = file.ReadAt(op.Dst, op.Offset)
+	// if err != nil {
+	// 	return myEIO
+	// }
+	// return
 }
 
 func (fs *fsMutable) WriteFile(
 	ctx context.Context,
-	op *fuseops.WriteFileOp) (err error) {
+	op interface{}) (err error) {
 	var n int
 	t0 := fs.opStart(op)
 	defer func() {
@@ -512,77 +565,83 @@ func (fs *fsMutable) WriteFile(
 		}
 	}()
 
-	file, err := fs.localCache.OpenFile(getPathToBackingFile(op.Inode), os.O_WRONLY|os.O_SYNC, fileDefaultMode)
-	if err != nil {
-		return jfuse.EIO
-	}
-	fs.lockBackingFiles.Lock()
-	defer fs.lockBackingFiles.Unlock()
+	return status.ErrNoFuse
 
-	fs.backingFiles[op.Inode] = &file
-	n, err = file.WriteAt(op.Data, op.Offset)
-	if err != nil {
-		return jfuse.EIO
-	}
+	// file, err := fs.localCache.OpenFile(getPathToBackingFile(op.Inode), os.O_WRONLY|os.O_SYNC, fileDefaultMode)
+	// if err != nil {
+	// 	return myEIO
+	// }
+	// fs.lockBackingFiles.Lock()
+	// defer fs.lockBackingFiles.Unlock()
 
-	ne, found := fs.iNodeStore.Get(formKey(op.Inode))
-	if !found {
-		panic("Invalid state inode: not found" + fmt.Sprint(uint64(op.Inode)))
-	}
-	nodeEntry := ne.(*nodeEntry)
-	nodeEntry.lock.Lock()
-	s, _ := file.Stat()
-	nodeEntry.attr.Size = uint64(s.Size())
-	nodeEntry.lock.Unlock()
-	return err
+	// fs.backingFiles[op.Inode] = &file
+	// n, err = file.WriteAt(op.Data, op.Offset)
+	// if err != nil {
+	// 	return myEIO
+	// }
+
+	// ne, found := fs.iNodeStore.Get(formKey())
+	// if !found {
+	// 	panic("Invalid state inode: not found" + fmt.Sprint(uint64(op.Inode)))
+	// }
+	// nodeEntry := ne.(*nodeEntry)
+	// nodeEntry.lock.Lock()
+	// s, _ := file.Stat()
+	// nodeEntry.attr.Size = uint64(s.Size())
+	// nodeEntry.lock.Unlock()
+	// return err
 }
 
 func (fs *fsMutable) SyncFile(
 	ctx context.Context,
-	op *fuseops.SyncFileOp) (err error) {
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
 
 	fs.lockBackingFiles.RLock()
 	defer fs.lockBackingFiles.RUnlock()
 
-	file := *fs.backingFiles[op.Inode]
-	if file != nil {
-		err := file.Sync()
-		if err != nil {
-			return jfuse.EIO
-		}
-	}
-	return
+	return status.ErrNoFuse
+
+	// file := *fs.backingFiles[op.Inode]
+	// if file != nil {
+	// 	err := file.Sync()
+	// 	if err != nil {
+	// 		return myEIO
+	// 	}
+	// }
+	// return
 }
 
 func (fs *fsMutable) FlushFile(
 	ctx context.Context,
-	op *fuseops.FlushFileOp) (err error) {
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
 
 	fs.lockBackingFiles.RLock()
 	defer fs.lockBackingFiles.RUnlock()
 
-	f := fs.backingFiles[op.Inode]
-	if f != nil {
-		file := *f
-		err := file.Sync()
-		if err != nil {
-			return jfuse.EIO
-		}
-	}
-	return
+	return status.ErrNoFuse
+
+	// f := fs.backingFiles[op.Inode]
+	// if f != nil {
+	// 	file := *f
+	// 	err := file.Sync()
+	// 	if err != nil {
+	// 		return myEIO
+	// 	}
+	// }
+	// return
 }
 
 func (fs *fsMutable) ReleaseFileHandle(
 	ctx context.Context,
-	op *fuseops.ReleaseFileHandleOp) (err error) {
+	op interface{}) (err error) {
 	t0 := fs.opStart(op)
 	defer fs.opEnd(t0, op, err)
 
-	return
+	return status.ErrNoFuse
 }
 
 // Commit changes on a MutableFS
@@ -592,65 +651,73 @@ func (dfs *MutableFS) Commit() error {
 
 // Add the root of the FS into the FS.
 func (fs *fsMutable) initRoot() (err error) {
-	_, found := fs.lookupTree.Get(formKey(fuseops.RootInodeID))
+	_, found := fs.lookupTree.Get(formKey())
 	if found {
 		return
 	}
 	err = fs.createNode(
-		formLookupKey(fuseops.RootInodeID, rootPath),
-		fuseops.RootInodeID,
+		formLookupKey(rootPath),
+		myRootInodeID,
 		rootPath,
 		nil,
-		fuseutil.DT_Directory,
+		"",
 		true)
 	return
 }
 
 // Run validations before creating a node. Need to take locks before calling.
-func (fs *fsMutable) preCreateCheck(parentInode fuseops.InodeID, lk []byte) error {
+func (fs *fsMutable) preCreateCheck(parentInode myINodeID, lk []byte) error {
+
+	return status.ErrNoFuse
+
 	// check parent exists
-	key := formKey(parentInode)
-	e, found := fs.iNodeStore.Get(key)
-	if !found {
-		return jfuse.ENOENT
-	}
+	// key := formKey()
+	// e, found := fs.iNodeStore.Get(key)
+	// if !found {
+	// 	return myENOENT
+	// }
 
 	// parent is a directory
-	n := e.(*nodeEntry)
-	if !n.attr.Mode.IsDir() {
-		return jfuse.ENOTDIR
-	}
+	// n := e.(*nodeEntry)
+	// if !n.attr.Mode.IsDir() {
+	// 	return myENOTDIR
+	// }
 
-	// check child name not taken
-	_, found = fs.lookupTree.Get(lk)
-	if found {
-		return jfuse.EEXIST
-	}
-	return nil
+	// // check child name not taken
+	// _, found = fs.lookupTree.Get(lk)
+	// if found {
+	// 	return myEEXIST
+	// }
+	// return nil
 }
 
-func (fs *fsMutable) insertReadDirEntry(id fuseops.InodeID, dirEnt *fuseutil.Dirent) {
+func (fs *fsMutable) insertReadDirEntry(id myINodeID, dirEnt *myDirent) {
 
 	if fs.readDirMap[id] == nil {
-		fs.readDirMap[id] = make(map[fuseops.InodeID]*fuseutil.Dirent)
+		fs.readDirMap[id] = make(map[myINodeID]*myDirent)
 	}
-	fs.readDirMap[id][dirEnt.Inode] = dirEnt
+	// fs.readDirMap[id][dirEnt.Inode] = dirEnt
 }
 
-func (fs *fsMutable) insertLookupEntry(id fuseops.InodeID, child string, entry lookupEntry) {
-	fs.lookupTree, _, _ = fs.lookupTree.Insert(formLookupKey(id, child), entry)
+func (fs *fsMutable) insertLookupEntry(id myINodeID, child string, entry lookupEntry) {
+	fs.lookupTree, _, _ = fs.lookupTree.Insert(formLookupKey(child), entry)
 }
 
 // Create a node. Need to hold the locks before calling.
-func (fs *fsMutable) createNode(lk []byte, parentINode fuseops.InodeID, childName string,
-	entry *fuseops.ChildInodeEntry, nodeType fuseutil.DirentType, isRoot bool) error {
+func (fs *fsMutable) createNode(
+	lk []byte,
+	parentINode myINodeID,
+	childName string,
+	entry interface{},
+	nodeType myDirentType,
+	isRoot bool) error {
 
 	// Create lookup key if not already created.
 	if lk == nil {
-		lk = formLookupKey(parentINode, childName)
+		lk = formLookupKey(childName)
 	}
 
-	var iNodeID fuseops.InodeID
+	var iNodeID myINodeID
 	if !isRoot {
 		iNodeID = fs.iNodeGenerator.allocINode()
 	} else {
@@ -661,15 +728,15 @@ func (fs *fsMutable) createNode(lk []byte, parentINode fuseops.InodeID, childNam
 	fs.lookupTree, _, _ = fs.lookupTree.Insert(lk, lookupEntry{iNode: iNodeID})
 
 	// Default to common case of create file
-	var linkCount = fileLinkCount
-	var defaultMode os.FileMode = fileDefaultMode
-	var defaultSize uint64
+	// var linkCount = fileLinkCount
+	// var defaultMode os.FileMode = fileDefaultMode
+	// var defaultSize uint64
 
-	if nodeType == fuseutil.DT_Directory {
-		linkCount = dirLinkCount
-		defaultMode = dirDefaultMode
-		defaultSize = dirInitialSize
-		fs.readDirMap[iNodeID] = make(map[fuseops.InodeID]*fuseutil.Dirent)
+	if false /* nodeType == fuseutil.DT_Directory */ {
+		// linkCount = dirLinkCount
+		// defaultMode = dirDefaultMode
+		// defaultSize = dirInitialSize
+		fs.readDirMap[iNodeID] = make(map[myINodeID]*myDirent)
 	} else {
 		// dont return error as open file will retry this.
 		file, err := fs.localCache.Create(fmt.Sprint(iNodeID))
@@ -684,16 +751,13 @@ func (fs *fsMutable) createNode(lk []byte, parentINode fuseops.InodeID, childNam
 		}
 	}
 
-	d := &fuseutil.Dirent{
-		Inode: iNodeID,
-		Name:  childName,
-		Type:  nodeType,
-	}
+	d := &myDirent{}
 	if !isRoot {
 		fs.insertReadDirEntry(parentINode, d)
 	}
 
-	ts := time.Now()
+	// ts := time.Now()
+	/*
 	attr := fuseops.InodeAttributes{
 		Size:   defaultSize,
 		Nlink:  linkCount,
@@ -705,47 +769,43 @@ func (fs *fsMutable) createNode(lk []byte, parentINode fuseops.InodeID, childNam
 		Uid:    defaultGID,
 		Gid:    defaultUID,
 	}
+  */
 
 	//iNode Store
-	fs.iNodeStore, _, _ = fs.iNodeStore.Insert(formKey(iNodeID), &nodeEntry{
+	fs.iNodeStore, _, _ = fs.iNodeStore.Insert(formKey(), &nodeEntry{
 		lock:              sync.Mutex{},
 		refCount:          1, // As per spec CreateFileOp
 		pathToBackingFile: getPathToBackingFile(iNodeID),
-		attr:              attr,
+		// attr:              attr,
 	})
 
+	/*
 	if nodeType == fuseutil.DT_Directory {
 		// Increment parent ref count.
-		p, _ := fs.iNodeStore.Get(formKey(parentINode))
+		p, _ := fs.iNodeStore.Get(formKey())
 		parentNodeEntry := p.(*nodeEntry)
 		parentNodeEntry.attr.Nlink++
 	}
+  */
 
-	// If return is expected
-	if entry != nil {
-		entry.Attributes = attr
-		entry.EntryExpiration = time.Now().Add(cacheYearLong)
-		entry.AttributesExpiration = time.Now().Add(cacheYearLong)
-		entry.Child = iNodeID
-	}
-	return nil
+	return status.ErrNoFuse
 }
 
-func getPathToBackingFile(iNode fuseops.InodeID) string {
+func getPathToBackingFile(iNode myINodeID) string {
 	return fmt.Sprint(uint64(iNode))
 }
 
 func shouldDelete(n *nodeEntry) bool {
 	// LookupCount should be zero.
-	if n.attr.Mode.IsDir() {
-		if n.refCount == 0 {
-			return true
-		}
-	} else {
-		if n.refCount == 0 && n.attr.Nlink == 0 {
-			return true
-		}
-	}
+	// if n.attr.Mode.IsDir() {
+	// 	if n.refCount == 0 {
+	// 		return true
+	// 	}
+	// } else {
+	// 	if n.refCount == 0 && n.attr.Nlink == 0 {
+	// 		return true
+	// 	}
+	// }
 	return false
 }
 
@@ -758,7 +818,7 @@ type commitChans struct {
 }
 
 type commitUploadTask struct {
-	inodeID fuseops.InodeID
+	inodeID myINodeID
 	name    string
 }
 
@@ -818,9 +878,10 @@ type commitDirUploadSync struct {
 }
 
 // util for logging
-func fuseDirentTypeString(direntType fuseutil.DirentType) string {
+func fuseDirentTypeString(direntType myDirentType) string {
 	var fileType string
 	switch direntType {
+		/*
 	case fuseutil.DT_Unknown:
 		fileType = "Unknown"
 	case fuseutil.DT_Socket:
@@ -837,6 +898,7 @@ func fuseDirentTypeString(direntType fuseutil.DirentType) string {
 		fileType = "Char"
 	case fuseutil.DT_FIFO:
 		fileType = "FIFO"
+    */
 	}
 	return fileType
 }
@@ -854,9 +916,10 @@ func commitUploadDir(
 	func() {
 		defer func() { <-dirUploadSync.bufferedChanSem }()
 		directoryUploadTasks = make([]commitUploadTask, 0)
-		for currInode, currEnt := range fs.readDirMap[uploadTask.inodeID] {
-			tsk := commitUploadTask{inodeID: currInode, name: uploadTask.name + "/" + currEnt.Name}
-			switch currEnt.Type {
+		// for currInode, currEnt := range fs.readDirMap[uploadTask.inodeID] {
+			// tsk := commitUploadTask{inodeID: currInode, name: uploadTask.name + "/" + currEnt.Name}
+			// switch currEnt.Type {
+				/*
 			case fuseutil.DT_File:
 				bundleUploadWaitGroup.Add(1)
 				go commitFileUpload(
@@ -868,10 +931,13 @@ func commitUploadDir(
 					tsk)
 			case fuseutil.DT_Directory:
 				directoryUploadTasks = append(directoryUploadTasks, tsk)
-			default:
-				fs.l.Warn("unexpected file type", zap.String("file type", fuseDirentTypeString(currEnt.Type)))
-			}
-		}
+        */
+			// default:
+			// }
+			fs.l.Warn("unexpected file type",
+				// zap.String("file type", fuseDirentTypeString(currEnt.Type))
+			)
+		// }
 	}()
 	for _, dutsk := range directoryUploadTasks {
 		select {
@@ -919,7 +985,7 @@ func commitWalkReadDirMap(
 		bundleUploadWaitGroup,
 		caFs,
 		dirUploadSync,
-		commitUploadTask{inodeID: fuseops.RootInodeID, name: ""})
+		commitUploadTask{inodeID: myRootInodeID, name: ""})
 }
 
 // starting from root, find each file and upload using go routines.

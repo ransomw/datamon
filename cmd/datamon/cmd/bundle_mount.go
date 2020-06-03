@@ -12,6 +12,7 @@ import (
 	"github.com/oneconcern/datamon/pkg/core"
 	"github.com/oneconcern/datamon/pkg/fuse"
 	"github.com/oneconcern/datamon/pkg/metrics"
+	"github.com/oneconcern/datamon/pkg/core/status"
 
 	"github.com/spf13/cobra"
 )
@@ -142,6 +143,9 @@ var mountBundleCmd = &cobra.Command{
 			fsOpts = append(fsOpts, fuse.WithMetrics(datamonFlags.root.metrics.IsEnabled()))
 		}
 		fs, err := fuse.NewReadOnlyFS(bundle, fsOpts...)
+		if err == status.ErrNoFuse {
+			onDaemonError("FUSE not available in this build", status.ErrNoFuse)
+		}
 		if err != nil {
 			onDaemonError("create read only filesystem", err)
 			return
